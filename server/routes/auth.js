@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { getDatabase } = require('../database/init');
+const { getPool } = require('../database/init');
 const { authenticateToken, generateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -14,13 +14,11 @@ function validateEmail(email) {
 }
 
 function validateUsername(username) {
-    // 3-30 chars, alphanumeric and underscores only
     const re = /^[a-zA-Z0-9_]{3,30}$/;
     return re.test(username);
 }
 
 function validatePassword(password) {
-    // At least 8 chars, 1 uppercase, 1 lowercase, 1 number
     return password.length >= 8 &&
         /[A-Z]/.test(password) &&
         /[a-z]/.test(password) &&
@@ -32,7 +30,6 @@ router.post('/register', async (req, res, next) => {
     try {
         const { username, email, password, displayName } = req.body;
 
-        // Validate input
         if (!username || !email || !password) {
             return res.status(400).json({ error: 'Username, email, and password are required' });
         }
@@ -53,14 +50,15 @@ router.post('/register', async (req, res, next) => {
             });
         }
 
-        const db = getDatabase();
+        const pool = getPool();
 
         // Check for existing user
-        const existingUser = db.prepare(
-            'SELECT id FROM users WHERE username = ? OR email = ?'
-        ).get(username.toLowerCase(), email.toLowerCase());
+        const existingUser = await pool.query(
+            'SELECT id FROM users WHERE username = $1 OR email = $2',
+            [username.toLowerCase(), email.toLowerCase()]
+        );
 
-        if (existingUser) {
+        if (existingUser.rows.length > 0) {
             return res.status(409).json({ error: 'Username or email already exists' });
         }
 
@@ -69,10 +67,11 @@ router.post('/register', async (req, res, next) => {
 
         // Create user
         const userId = uuidv4();
-        db.prepare(`
-      INSERT INTO users (id, username, email, password_hash, display_name)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(userId, username.toLowerCase(), email.toLowerCase(), passwordHash, displayName || username);
+        await pool.query(
+            `INSERT INTO users (id, username, email, password_hash, display_name)
+       VALUES ($1, $2, $3, $4, $5)`,
+            [userId, username.toLowerCase(), email.toLowerCase(), passwordHash, displayName || username]
+        );
 
         // Generate token
         const token = generateToken(userId);
@@ -82,7 +81,7 @@ router.post('/register', async (req, res, next) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.status(201).json({
@@ -108,14 +107,16 @@ router.post('/login', async (req, res, next) => {
             return res.status(400).json({ error: 'Login and password are required' });
         }
 
-        const db = getDatabase();
+        const pool = getPool();
 
-        // Find user by username or email
-        const user = db.prepare(`
-      SELECT id, username, email, password_hash, display_name, avatar_url, is_active
-      FROM users 
-      WHERE username = ? OR email = ?
-    `).get(login.toLowerCase(), login.toLowerCase());
+        const result = await pool.query(
+            `SELECT id, username, email, password_hash, display_name, avatar_url, is_active
+       FROM users 
+       WHERE username = $1 OR email = $1`,
+            [login.toLowerCase()]
+        );
+
+        const user = result.rows[0];
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -125,16 +126,13 @@ router.post('/login', async (req, res, next) => {
             return res.status(403).json({ error: 'Account is deactivated' });
         }
 
-        // Verify password
         const validPassword = await bcrypt.compare(password, user.password_hash);
         if (!validPassword) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Generate token
         const token = generateToken(user.id);
 
-        // Set cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -164,41 +162,49 @@ router.post('/logout', (req, res) => {
 });
 
 // Get current user
-router.get('/me', authenticateToken, (req, res) => {
-    const db = getDatabase();
-    const user = db.prepare(`
-    SELECT id, username, email, display_name, avatar_url, bio, created_at
-    FROM users WHERE id = ?
-  `).get(req.user.id);
+router.get('/me', authenticateToken, async (req, res, next) => {
+    try {
+        const pool = getPool();
+        const result = await pool.query(
+            `SELECT id, username, email, display_name, avatar_url, bio, created_at
+       FROM users WHERE id = $1`,
+            [req.user.id]
+        );
 
-    if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        const user = result.rows[0];
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.display_name,
+            avatarUrl: user.avatar_url,
+            bio: user.bio,
+            createdAt: user.created_at
+        });
+    } catch (error) {
+        next(error);
     }
-
-    res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.display_name,
-        avatarUrl: user.avatar_url,
-        bio: user.bio,
-        createdAt: user.created_at
-    });
 });
 
 // Update profile
 router.patch('/me', authenticateToken, async (req, res, next) => {
     try {
         const { displayName, bio } = req.body;
-        const db = getDatabase();
+        const pool = getPool();
 
-        db.prepare(`
-      UPDATE users 
-      SET display_name = COALESCE(?, display_name),
-          bio = COALESCE(?, bio),
-          updated_at = datetime('now')
-      WHERE id = ?
-    `).run(displayName, bio, req.user.id);
+        await pool.query(
+            `UPDATE users 
+       SET display_name = COALESCE($1, display_name),
+           bio = COALESCE($2, bio),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3`,
+            [displayName, bio, req.user.id]
+        );
 
         res.json({ message: 'Profile updated' });
     } catch (error) {
@@ -221,17 +227,24 @@ router.post('/change-password', authenticateToken, async (req, res, next) => {
             });
         }
 
-        const db = getDatabase();
-        const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+        const pool = getPool();
+        const result = await pool.query(
+            'SELECT password_hash FROM users WHERE id = $1',
+            [req.user.id]
+        );
 
+        const user = result.rows[0];
         const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
+
         if (!validPassword) {
             return res.status(401).json({ error: 'Current password is incorrect' });
         }
 
         const newPasswordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-        db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
-            .run(newPasswordHash, req.user.id);
+        await pool.query(
+            'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [newPasswordHash, req.user.id]
+        );
 
         res.json({ message: 'Password changed successfully' });
     } catch (error) {

@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
-const { getDatabase } = require('../database/init');
+const { getPool } = require('../database/init');
 
 // In production, JWT_SECRET environment variable is required
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
     ? (() => { throw new Error('JWT_SECRET environment variable is required in production'); })()
     : 'dev-secret-key-do-not-use-in-production');
 
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -17,8 +17,13 @@ function authenticateToken(req, res, next) {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         // Verify user still exists and is active
-        const db = getDatabase();
-        const user = db.prepare('SELECT id, username, email, display_name, avatar_url, is_active FROM users WHERE id = ?').get(decoded.userId);
+        const pool = getPool();
+        const result = await pool.query(
+            'SELECT id, username, email, display_name, avatar_url, is_active FROM users WHERE id = $1',
+            [decoded.userId]
+        );
+
+        const user = result.rows[0];
 
         if (!user || !user.is_active) {
             return res.status(401).json({ error: 'Invalid or expired session' });
@@ -34,7 +39,7 @@ function authenticateToken(req, res, next) {
     }
 }
 
-function optionalAuth(req, res, next) {
+async function optionalAuth(req, res, next) {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
@@ -44,9 +49,13 @@ function optionalAuth(req, res, next) {
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        const db = getDatabase();
-        const user = db.prepare('SELECT id, username, email, display_name, avatar_url, is_active FROM users WHERE id = ?').get(decoded.userId);
+        const pool = getPool();
+        const result = await pool.query(
+            'SELECT id, username, email, display_name, avatar_url, is_active FROM users WHERE id = $1',
+            [decoded.userId]
+        );
 
+        const user = result.rows[0];
         req.user = user && user.is_active ? user : null;
     } catch {
         req.user = null;

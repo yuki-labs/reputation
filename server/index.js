@@ -10,9 +10,6 @@ const userRoutes = require('./routes/users');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize database
-initializeDatabase();
-
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -48,8 +45,20 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`Storage path: ${getStoragePath()}`);
-});
+// Initialize database and start server
+async function start() {
+    try {
+        await initializeDatabase();
+
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server running on port ${PORT}`);
+            console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`Storage path: ${getStoragePath()}`);
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+start();

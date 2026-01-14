@@ -4,8 +4,8 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 // Use STORAGE_PATH env var for Railway volume, fallback to local uploads folder
-const STORAGE_DIR = process.env.STORAGE_PATH || path.join(__dirname, '../../data');
-const UPLOADS_DIR = path.join(STORAGE_DIR, 'uploads');
+const STORAGE_DIR = process.env.STORAGE_PATH || path.join(__dirname, '../../uploads');
+const UPLOADS_DIR = path.join(STORAGE_DIR, 'images');
 const THUMBNAILS_DIR = path.join(UPLOADS_DIR, 'thumbnails');
 
 // Ensure directories exist
