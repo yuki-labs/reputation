@@ -1,7 +1,8 @@
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const { initializeDatabase } = require('./database/init');
+const { initializeDatabase, getStoragePath } = require('./database/init');
+const { getUploadPaths } = require('./middleware/upload');
 const authRoutes = require('./routes/auth');
 const imageRoutes = require('./routes/images');
 const userRoutes = require('./routes/users');
@@ -24,7 +25,10 @@ if (process.env.NODE_ENV === 'production') {
 
 // Static files
 app.use(express.static(path.join(__dirname, '../public')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Serve uploads from storage directory
+const { UPLOADS_DIR } = getUploadPaths();
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -47,4 +51,5 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`Storage path: ${getStoragePath()}`);
 });

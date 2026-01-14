@@ -2,30 +2,31 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DATA_DIR = path.join(__dirname, '../../data');
-const DB_PATH = path.join(DATA_DIR, 'verified_users.db');
+// Use STORAGE_PATH env var for Railway volume, fallback to local data folder
+const STORAGE_DIR = process.env.STORAGE_PATH || path.join(__dirname, '../../data');
+const DB_PATH = path.join(STORAGE_DIR, 'verified_users.db');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure storage directory exists
+if (!fs.existsSync(STORAGE_DIR)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
 let db = null;
 
 function getDatabase() {
-    if (!db) {
-        db = new Database(DB_PATH);
-        db.pragma('journal_mode = WAL');
-        db.pragma('foreign_keys = ON');
-    }
-    return db;
+  if (!db) {
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+  }
+  return db;
 }
 
 function initializeDatabase() {
-    const db = getDatabase();
+  const db = getDatabase();
 
-    // Users table
-    db.exec(`
+  // Users table
+  db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
@@ -41,14 +42,14 @@ function initializeDatabase() {
     )
   `);
 
-    // Create indexes for users
-    db.exec(`
+  // Create indexes for users
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
-    // Images table
-    db.exec(`
+  // Images table
+  db.exec(`
     CREATE TABLE IF NOT EXISTS images (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -68,15 +69,15 @@ function initializeDatabase() {
     )
   `);
 
-    // Create indexes for images
-    db.exec(`
+  // Create indexes for images
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_images_user_id ON images(user_id);
     CREATE INDEX IF NOT EXISTS idx_images_created_at ON images(created_at);
     CREATE INDEX IF NOT EXISTS idx_images_is_public ON images(is_public);
   `);
 
-    // Sessions table for token management
-    db.exec(`
+  // Sessions table for token management
+  db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -89,12 +90,16 @@ function initializeDatabase() {
     )
   `);
 
-    db.exec(`
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
   `);
 
-    console.log('Database initialized successfully');
+  console.log('Database initialized at:', DB_PATH);
 }
 
-module.exports = { getDatabase, initializeDatabase };
+function getStoragePath() {
+  return STORAGE_DIR;
+}
+
+module.exports = { getDatabase, initializeDatabase, getStoragePath };

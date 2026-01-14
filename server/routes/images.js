@@ -5,12 +5,18 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { getDatabase } = require('../database/init');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
-const { upload, UPLOADS_DIR, THUMBNAILS_DIR } = require('../middleware/upload');
+const { upload, getUploadPaths } = require('../middleware/upload');
 
 const router = express.Router();
 
+// Get paths dynamically
+function getPaths() {
+    return getUploadPaths();
+}
+
 // Generate thumbnail
 async function generateThumbnail(filename) {
+    const { UPLOADS_DIR, THUMBNAILS_DIR } = getPaths();
     const inputPath = path.join(UPLOADS_DIR, filename);
     const thumbnailName = `thumb_${filename}`;
     const outputPath = path.join(THUMBNAILS_DIR, thumbnailName);
@@ -250,6 +256,7 @@ router.patch('/:id', authenticateToken, (req, res) => {
 // Delete image
 router.delete('/:id', authenticateToken, (req, res) => {
     const db = getDatabase();
+    const { UPLOADS_DIR, THUMBNAILS_DIR } = getPaths();
 
     const image = db.prepare('SELECT user_id, filename, thumbnail_filename FROM images WHERE id = ?')
         .get(req.params.id);
