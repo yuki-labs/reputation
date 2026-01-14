@@ -13,16 +13,18 @@ async function getUserTags(pool, userId) {
     return result.rows.map(row => row.tag);
 }
 
-// Search users
+// Search users (supports search by query, filter by tag, or both)
 router.get('/search', async (req, res, next) => {
     try {
         const { q, tag, page = 1, limit = 20 } = req.query;
+        const hasQuery = q && q.trim().length >= 2;
+        const hasTag = tag && tag.trim().length > 0;
 
-        if (!q || q.trim().length < 2) {
+        // Must have at least a query or a tag
+        if (!hasQuery && !hasTag) {
             return res.json({ users: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
         }
 
-        const searchTerm = `%${q.trim().toLowerCase()}%`;
         const offset = (page - 1) * limit;
         const pool = getPool();
 
@@ -30,8 +32,9 @@ router.get('/search', async (req, res, next) => {
         let countQuery;
         let queryParams;
 
-        if (tag) {
-            // Search with tag filter
+        if (hasQuery && hasTag) {
+            // Search with both query and tag filter
+            const searchTerm = `%${q.trim().toLowerCase()}%`;
             usersQuery = `
         SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.created_at,
                COUNT(DISTINCT i.id) as image_count,
@@ -57,8 +60,32 @@ router.get('/search', async (req, res, next) => {
           AND (LOWER(u.username) LIKE $1 OR LOWER(u.display_name) LIKE $1)`;
 
             queryParams = [searchTerm, tag, q.trim().toLowerCase(), `${q.trim().toLowerCase()}%`, parseInt(limit), parseInt(offset)];
+
+        } else if (hasTag) {
+            // Tag only - show all users with this tag
+            usersQuery = `
+        SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.created_at,
+               COUNT(DISTINCT i.id) as image_count,
+               ARRAY_AGG(DISTINCT ut.tag) FILTER (WHERE ut.tag IS NOT NULL) as tags
+        FROM users u
+        LEFT JOIN images i ON u.id = i.user_id AND i.is_public = true
+        LEFT JOIN user_tags ut ON u.id = ut.user_id
+        WHERE u.is_active = true 
+          AND EXISTS (SELECT 1 FROM user_tags ut2 WHERE ut2.user_id = u.id AND ut2.tag = $1)
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+        LIMIT $2 OFFSET $3`;
+
+            countQuery = `
+        SELECT COUNT(DISTINCT u.id) as count FROM users u
+        INNER JOIN user_tags ut ON u.id = ut.user_id AND ut.tag = $1
+        WHERE u.is_active = true`;
+
+            queryParams = [tag, parseInt(limit), parseInt(offset)];
+
         } else {
-            // Search without tag filter
+            // Query only - search without tag filter
+            const searchTerm = `%${q.trim().toLowerCase()}%`;
             usersQuery = `
         SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.created_at,
                COUNT(DISTINCT i.id) as image_count,
@@ -85,8 +112,18 @@ router.get('/search', async (req, res, next) => {
         }
 
         const usersResult = await pool.query(usersQuery, queryParams);
-        const countResult = await pool.query(countQuery, tag ? [searchTerm, tag] : [searchTerm]);
 
+        // Build count query params
+        let countParams;
+        if (hasQuery && hasTag) {
+            countParams = [`%${q.trim().toLowerCase()}%`, tag];
+        } else if (hasTag) {
+            countParams = [tag];
+        } else {
+            countParams = [`%${q.trim().toLowerCase()}%`];
+        }
+
+        const countResult = await pool.query(countQuery, countParams);
         const total = parseInt(countResult.rows[0].count);
 
         res.json({

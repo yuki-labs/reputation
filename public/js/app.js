@@ -122,7 +122,7 @@ const App = {
             Find <span class="gradient-text">Verified</span> Users
           </h1>
           <p class="search-hero-subtitle">
-            Search for users by username or display name
+            Search for users or browse by activity tag
           </p>
           
           <div class="search-container">
@@ -200,11 +200,15 @@ const App = {
   performSearch(query, searchResults, searchSpinner) {
     clearTimeout(this.searchTimeout);
 
-    if (query.length < 2) {
+    const hasQuery = query.length >= 2;
+    const hasTag = this.currentTagFilter !== null;
+
+    // Must have at least a query or a tag filter
+    if (!hasQuery && !hasTag) {
       searchResults.innerHTML = `
         <div class="search-placeholder">
           <div class="search-placeholder-icon">👥</div>
-          <p>${query.length === 0 ? 'Start typing to search for users' : 'Type at least 2 characters'}</p>
+          <p>${query.length === 0 ? 'Start typing to search for users, or click a tag to browse' : 'Type at least 2 characters'}</p>
         </div>
       `;
       return;
@@ -214,20 +218,28 @@ const App = {
 
     this.searchTimeout = setTimeout(async () => {
       try {
-        const data = await API.users.search(query, this.currentTagFilter);
+        const data = await API.users.search(hasQuery ? query : '', this.currentTagFilter);
         searchSpinner.style.display = 'none';
 
         if (data.users.length === 0) {
+          const filterDesc = [];
+          if (hasQuery) filterDesc.push(`"${query}"`);
+          if (hasTag) filterDesc.push(`tag "${this.currentTagFilter}"`);
+
           searchResults.innerHTML = `
             <div class="search-placeholder">
               <div class="search-placeholder-icon">🔍</div>
-              <p>No users found for "${query}"${this.currentTagFilter ? ` with tag "${this.currentTagFilter}"` : ''}</p>
+              <p>No users found ${filterDesc.length ? 'for ' + filterDesc.join(' with ') : ''}</p>
             </div>
           `;
         } else {
+          const headerText = hasTag && !hasQuery
+            ? `${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} ${this.currentTagFilter}`
+            : `${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} found`;
+
           searchResults.innerHTML = `
             <div class="search-results-header">
-              <span>${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} found</span>
+              <span>${headerText}</span>
             </div>
             <div class="user-grid" id="user-grid">
               ${data.users.map(user => this.renderUserCard(user)).join('')}
