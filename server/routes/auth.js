@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { getDatabase } = require('../database/init');
 const { authenticateToken, generateToken } = require('../middleware/auth');
@@ -230,7 +230,7 @@ router.post('/change-password', authenticateToken, async (req, res, next) => {
         }
 
         const newPasswordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-        db.prepare('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE id = ?')
+        db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
             .run(newPasswordHash, req.user.id);
 
         res.json({ message: 'Password changed successfully' });
