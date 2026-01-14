@@ -1,7 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { getDatabase } = require('../database/init');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
+// In production, JWT_SECRET environment variable is required
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('JWT_SECRET environment variable is required in production'); })()
+    : 'dev-secret-key-do-not-use-in-production');
 
 function authenticateToken(req, res, next) {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[1];

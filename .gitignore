@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Data
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+!uploads/thumbnails/
+uploads/thumbnails/*
+!uploads/thumbnails/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
