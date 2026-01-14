@@ -2,7 +2,6 @@
 const API = {
     baseUrl: '/api',
 
-    // Generic request method
     async request(endpoint, options = {}) {
         const url = `${this.baseUrl}${endpoint}`;
         const config = {
@@ -14,7 +13,6 @@ const API = {
             ...options,
         };
 
-        // Don't set Content-Type for FormData
         if (options.body instanceof FormData) {
             delete config.headers['Content-Type'];
         }
@@ -36,7 +34,6 @@ const API = {
         }
     },
 
-    // Auth endpoints
     auth: {
         async register(userData) {
             return API.request('/auth/register', {
@@ -75,7 +72,6 @@ const API = {
         },
     },
 
-    // Image endpoints
     images: {
         async upload(formData, onProgress) {
             return new Promise((resolve, reject) => {
@@ -135,8 +131,11 @@ const API = {
         },
     },
 
-    // User endpoints
     users: {
+        async search(query, page = 1, limit = 20) {
+            return API.request(`/users/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+        },
+
         async getProfile(username) {
             return API.request(`/users/${username}`);
         },
@@ -147,5 +146,4 @@ const API = {
     },
 };
 
-// Export for use in other modules
 window.API = API;

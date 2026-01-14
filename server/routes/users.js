@@ -4,6 +4,67 @@ const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Search users
+router.get('/search', async (req, res, next) => {
+    try {
+        const { q, page = 1, limit = 20 } = req.query;
+
+        if (!q || q.trim().length < 2) {
+            return res.json({ users: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+        }
+
+        const searchTerm = `%${q.trim().toLowerCase()}%`;
+        const offset = (page - 1) * limit;
+        const pool = getPool();
+
+        const usersResult = await pool.query(
+            `SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, u.created_at,
+              COUNT(i.id) as image_count
+       FROM users u
+       LEFT JOIN images i ON u.id = i.user_id AND i.is_public = true
+       WHERE u.is_active = true 
+         AND (LOWER(u.username) LIKE $1 OR LOWER(u.display_name) LIKE $1)
+       GROUP BY u.id
+       ORDER BY 
+         CASE WHEN LOWER(u.username) = $2 THEN 0
+              WHEN LOWER(u.username) LIKE $3 THEN 1
+              ELSE 2 END,
+         u.created_at DESC
+       LIMIT $4 OFFSET $5`,
+            [searchTerm, q.trim().toLowerCase(), `${q.trim().toLowerCase()}%`, parseInt(limit), parseInt(offset)]
+        );
+
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as count FROM users 
+       WHERE is_active = true 
+         AND (LOWER(username) LIKE $1 OR LOWER(display_name) LIKE $1)`,
+            [searchTerm]
+        );
+
+        const total = parseInt(countResult.rows[0].count);
+
+        res.json({
+            users: usersResult.rows.map(user => ({
+                id: user.id,
+                username: user.username,
+                displayName: user.display_name,
+                avatarUrl: user.avatar_url,
+                bio: user.bio,
+                imageCount: parseInt(user.image_count) || 0,
+                createdAt: user.created_at
+            })),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Get user profile by username
 router.get('/:username', optionalAuth, async (req, res, next) => {
     try {

@@ -1,125 +1,232 @@
 // Main App Module - Handles routing and global functionality
 const App = {
-    // Initialize application
-    async init() {
-        // Initialize auth state
-        await Auth.init();
+  searchTimeout: null,
 
-        // Setup routing
-        this.setupRouting();
+  async init() {
+    await Auth.init();
+    this.setupRouting();
+    this.setupGlobalEvents();
+    this.handleRoute();
+  },
 
-        // Setup global event listeners
-        this.setupGlobalEvents();
+  setupRouting() {
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('[data-link], .nav-link, .logo');
+      if (link && link.href) {
+        e.preventDefault();
+        const url = new URL(link.href);
+        this.navigateTo(url.pathname);
+      }
+    });
 
-        // Initial route
-        this.handleRoute();
-    },
+    window.addEventListener('popstate', () => {
+      this.handleRoute();
+    });
+  },
 
-    // Setup client-side routing
-    setupRouting() {
-        // Handle link clicks
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('[data-link], .nav-link, .logo');
-            if (link && link.href) {
-                e.preventDefault();
-                const url = new URL(link.href);
-                this.navigateTo(url.pathname);
-            }
-        });
+  navigateTo(path) {
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+    this.handleRoute();
+  },
 
-        // Handle browser back/forward
-        window.addEventListener('popstate', () => {
-            this.handleRoute();
-        });
-    },
+  async handleRoute() {
+    const path = window.location.pathname;
+    const main = document.getElementById('main-content');
 
-    // Navigate to path
-    navigateTo(path) {
-        if (window.location.pathname !== path) {
-            window.history.pushState(null, '', path);
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.classList.toggle('active', link.getAttribute('href') === path ||
+        (path === '/' && link.dataset.page === 'home'));
+    });
+
+    let html = '';
+    let initFn = null;
+
+    switch (path) {
+      case '/':
+        html = this.renderSearchPage();
+        initFn = () => this.initSearchPage();
+        break;
+
+      case '/upload':
+        html = Upload.render();
+        initFn = () => Upload.init();
+        break;
+
+      case '/my-images':
+        html = await Gallery.renderMyImages();
+        initFn = () => Gallery.init('my');
+        break;
+
+      case '/profile':
+        html = this.renderProfilePage();
+        initFn = () => this.initProfilePage();
+        break;
+
+      case '/settings':
+        html = this.renderSettingsPage();
+        initFn = () => this.initSettingsPage();
+        break;
+
+      default:
+        if (path.startsWith('/u/')) {
+          const username = path.split('/')[2];
+          html = await this.renderUserProfile(username);
+          initFn = () => this.initUserProfile(username);
+        } else {
+          html = this.render404();
         }
-        this.handleRoute();
-    },
+    }
 
-    // Handle current route
-    async handleRoute() {
-        const path = window.location.pathname;
-        const main = document.getElementById('main-content');
+    main.innerHTML = html;
 
-        // Update active nav link
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.classList.toggle('active', link.getAttribute('href') === path ||
-                (path === '/' && link.dataset.page === 'home'));
-        });
+    if (initFn) {
+      initFn();
+    }
 
-        // Route handling
-        let html = '';
-        let initFn = null;
+    window.scrollTo(0, 0);
+  },
 
-        switch (path) {
-            case '/':
-                html = await Gallery.renderPublicGallery();
-                initFn = () => Gallery.init('public');
-                break;
+  // Search page - main interface
+  renderSearchPage() {
+    return `
+      <div class="container">
+        <div class="search-hero">
+          <h1 class="search-hero-title">
+            Find <span class="gradient-text">Verified</span> Users
+          </h1>
+          <p class="search-hero-subtitle">
+            Search for users by username or display name
+          </p>
+          
+          <div class="search-container">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input 
+                type="text" 
+                id="search-input" 
+                class="search-input" 
+                placeholder="Search users..."
+                autocomplete="off"
+                autofocus
+              >
+              <div class="search-spinner" id="search-spinner" style="display: none;"></div>
+            </div>
+          </div>
+        </div>
 
-            case '/upload':
-                html = Upload.render();
-                initFn = () => Upload.init();
-                break;
+        <div class="search-results" id="search-results">
+          <div class="search-placeholder">
+            <div class="search-placeholder-icon">👥</div>
+            <p>Start typing to search for users</p>
+          </div>
+        </div>
+      </div>
+    `;
+  },
 
-            case '/my-images':
-                html = await Gallery.renderMyImages();
-                initFn = () => Gallery.init('my');
-                break;
+  initSearchPage() {
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    const searchSpinner = document.getElementById('search-spinner');
 
-            case '/profile':
-                html = this.renderProfilePage();
-                initFn = () => this.initProfilePage();
-                break;
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
 
-            case '/settings':
-                html = this.renderSettingsPage();
-                initFn = () => this.initSettingsPage();
-                break;
+      clearTimeout(this.searchTimeout);
 
-            default:
-                // Check for user profile route /u/username
-                if (path.startsWith('/u/')) {
-                    const username = path.split('/')[2];
-                    html = await this.renderUserProfile(username);
-                    initFn = () => this.initUserProfile(username);
-                } else {
-                    html = this.render404();
-                }
+      if (query.length < 2) {
+        searchResults.innerHTML = `
+          <div class="search-placeholder">
+            <div class="search-placeholder-icon">👥</div>
+            <p>${query.length === 0 ? 'Start typing to search for users' : 'Type at least 2 characters'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      searchSpinner.style.display = 'block';
+
+      this.searchTimeout = setTimeout(async () => {
+        try {
+          const data = await API.users.search(query);
+          searchSpinner.style.display = 'none';
+
+          if (data.users.length === 0) {
+            searchResults.innerHTML = `
+              <div class="search-placeholder">
+                <div class="search-placeholder-icon">🔍</div>
+                <p>No users found for "${query}"</p>
+              </div>
+            `;
+          } else {
+            searchResults.innerHTML = `
+              <div class="search-results-header">
+                <span>${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} found</span>
+              </div>
+              <div class="user-grid" id="user-grid">
+                ${data.users.map(user => this.renderUserCard(user)).join('')}
+              </div>
+            `;
+          }
+        } catch (error) {
+          searchSpinner.style.display = 'none';
+          this.showToast(error.message, 'error');
         }
+      }, 300);
+    });
 
-        main.innerHTML = html;
+    // Focus search on page load
+    searchInput.focus();
+  },
 
-        // Initialize page-specific functionality
-        if (initFn) {
-            initFn();
-        }
+  renderUserCard(user) {
+    const initials = (user.displayName || user.username)
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
 
-        // Scroll to top
-        window.scrollTo(0, 0);
-    },
+    return `
+      <a href="/u/${user.username}" class="user-card" data-link>
+        <div class="user-card-avatar">
+          ${user.avatarUrl
+        ? `<img src="${user.avatarUrl}" alt="${user.displayName || user.username}">`
+        : `<span>${initials}</span>`
+      }
+        </div>
+        <div class="user-card-info">
+          <h3 class="user-card-name">${user.displayName || user.username}</h3>
+          <p class="user-card-username">@${user.username}</p>
+          ${user.bio ? `<p class="user-card-bio">${user.bio}</p>` : ''}
+        </div>
+        <div class="user-card-stats">
+          <span class="user-card-stat">
+            <span class="user-card-stat-value">${user.imageCount}</span>
+            <span class="user-card-stat-label">images</span>
+          </span>
+        </div>
+      </a>
+    `;
+  },
 
-    // Render profile page
-    renderProfilePage() {
-        if (!Auth.isLoggedIn()) {
-            this.navigateTo('/');
-            return '';
-        }
+  renderProfilePage() {
+    if (!Auth.isLoggedIn()) {
+      this.navigateTo('/');
+      return '';
+    }
 
-        const user = Auth.currentUser;
-        return `
+    const user = Auth.currentUser;
+    return `
       <div class="container">
         <div class="profile-header">
           <div class="profile-avatar" id="profile-avatar">
             ${user.avatarUrl
-                ? `<img src="${user.avatarUrl}" alt="${user.displayName}">`
-                : Auth.getInitials(user.displayName || user.username)
-            }
+        ? `<img src="${user.avatarUrl}" alt="${user.displayName}">`
+        : Auth.getInitials(user.displayName || user.username)
+      }
           </div>
           <div class="profile-info">
             <h1 class="profile-name">${user.displayName || user.username}</h1>
@@ -143,27 +250,23 @@ const App = {
         </div>
       </div>
     `;
-    },
+  },
 
-    // Initialize profile page
-    async initProfilePage() {
-        // Load stats and images
-        try {
-            const data = await API.images.getMyImages(1, 20);
+  async initProfilePage() {
+    try {
+      const data = await API.images.getMyImages(1, 20);
 
-            // Update stats
-            const statsEl = document.getElementById('profile-stats');
-            statsEl.innerHTML = `
+      const statsEl = document.getElementById('profile-stats');
+      statsEl.innerHTML = `
         <div class="profile-stat">
           <div class="profile-stat-value">${data.pagination.total}</div>
           <div class="profile-stat-label">Images</div>
         </div>
       `;
 
-            // Display images
-            const grid = document.getElementById('gallery-grid');
-            if (data.images.length === 0) {
-                grid.innerHTML = `
+      const grid = document.getElementById('gallery-grid');
+      if (data.images.length === 0) {
+        grid.innerHTML = `
           <div class="gallery-empty">
             <div class="gallery-empty-icon">📷</div>
             <h3 class="gallery-empty-title">No images yet</h3>
@@ -172,28 +275,27 @@ const App = {
             </a>
           </div>
         `;
-            } else {
-                grid.innerHTML = '';
-                Gallery.currentImages = data.images;
-                data.images.forEach((image, index) => {
-                    const card = Gallery.createImageCard(image, 'my', index);
-                    grid.appendChild(card);
-                });
-            }
-        } catch (error) {
-            this.showToast(error.message, 'error');
-        }
-    },
+      } else {
+        grid.innerHTML = '';
+        Gallery.currentImages = data.images;
+        data.images.forEach((image, index) => {
+          const card = Gallery.createImageCard(image, 'my', index);
+          grid.appendChild(card);
+        });
+      }
+    } catch (error) {
+      this.showToast(error.message, 'error');
+    }
+  },
 
-    // Render settings page
-    renderSettingsPage() {
-        if (!Auth.isLoggedIn()) {
-            this.navigateTo('/');
-            return '';
-        }
+  renderSettingsPage() {
+    if (!Auth.isLoggedIn()) {
+      this.navigateTo('/');
+      return '';
+    }
 
-        const user = Auth.currentUser;
-        return `
+    const user = Auth.currentUser;
+    return `
       <div class="container" style="max-width: 600px;">
         <h1 style="font-size: var(--font-size-3xl); font-weight: 700; margin-bottom: var(--space-8);">
           Settings
@@ -251,71 +353,67 @@ const App = {
         </div>
       </div>
     `;
-    },
+  },
 
-    // Initialize settings page
-    initSettingsPage() {
-        // Profile form
-        const profileForm = document.getElementById('profile-form');
-        profileForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = document.getElementById('profile-submit');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
+  initSettingsPage() {
+    const profileForm = document.getElementById('profile-form');
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('profile-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
 
-            try {
-                await API.auth.updateProfile({
-                    displayName: document.getElementById('settings-displayName').value,
-                    bio: document.getElementById('settings-bio').value,
-                });
-
-                await Auth.init(); // Refresh user data
-                this.showToast('Profile updated', 'success');
-            } catch (error) {
-                this.showToast(error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Save Profile';
-            }
+      try {
+        await API.auth.updateProfile({
+          displayName: document.getElementById('settings-displayName').value,
+          bio: document.getElementById('settings-bio').value,
         });
 
-        // Password form
-        const passwordForm = document.getElementById('password-form');
-        passwordForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        await Auth.init();
+        this.showToast('Profile updated', 'success');
+      } catch (error) {
+        this.showToast(error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Profile';
+      }
+    });
 
-            const newPass = document.getElementById('new-password').value;
-            const confirmPass = document.getElementById('confirm-password').value;
+    const passwordForm = document.getElementById('password-form');
+    passwordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-            if (newPass !== confirmPass) {
-                this.showToast('Passwords do not match', 'error');
-                return;
-            }
+      const newPass = document.getElementById('new-password').value;
+      const confirmPass = document.getElementById('confirm-password').value;
 
-            const submitBtn = document.getElementById('password-submit');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Changing...';
+      if (newPass !== confirmPass) {
+        this.showToast('Passwords do not match', 'error');
+        return;
+      }
 
-            try {
-                await API.auth.changePassword({
-                    currentPassword: document.getElementById('current-password').value,
-                    newPassword: newPass,
-                });
+      const submitBtn = document.getElementById('password-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Changing...';
 
-                this.showToast('Password changed successfully', 'success');
-                passwordForm.reset();
-            } catch (error) {
-                this.showToast(error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Change Password';
-            }
+      try {
+        await API.auth.changePassword({
+          currentPassword: document.getElementById('current-password').value,
+          newPassword: newPass,
         });
-    },
 
-    // Render user profile
-    async renderUserProfile(username) {
-        return `
+        this.showToast('Password changed successfully', 'success');
+        passwordForm.reset();
+      } catch (error) {
+        this.showToast(error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Change Password';
+      }
+    });
+  },
+
+  async renderUserProfile(username) {
+    return `
       <div class="container">
         <div class="profile-header" id="user-profile-header">
           <div class="loading" style="width: 100%;"><div class="spinner"></div></div>
@@ -332,22 +430,27 @@ const App = {
         </div>
       </div>
     `;
-    },
+  },
 
-    // Initialize user profile
-    async initUserProfile(username) {
-        try {
-            const user = await API.users.getProfile(username);
-            const images = await API.users.getUserImages(username);
+  async initUserProfile(username) {
+    try {
+      const user = await API.users.getProfile(username);
+      const images = await API.users.getUserImages(username);
 
-            // Update header
-            const header = document.getElementById('user-profile-header');
-            header.innerHTML = `
+      const initials = (user.displayName || user.username)
+        .split(' ')
+        .map(part => part[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+
+      const header = document.getElementById('user-profile-header');
+      header.innerHTML = `
         <div class="profile-avatar">
           ${user.avatarUrl
-                    ? `<img src="${user.avatarUrl}" alt="${user.displayName}">`
-                    : Auth.getInitials(user.displayName || user.username)
-                }
+          ? `<img src="${user.avatarUrl}" alt="${user.displayName}">`
+          : initials
+        }
         </div>
         <div class="profile-info">
           <h1 class="profile-name">${user.displayName || user.username}</h1>
@@ -362,143 +465,128 @@ const App = {
         </div>
       `;
 
-            // Update gallery title
-            document.getElementById('user-gallery-title').textContent = `${user.displayName || user.username}'s Images`;
+      document.getElementById('user-gallery-title').textContent = `${user.displayName || user.username}'s Images`;
 
-            // Display images
-            const grid = document.getElementById('gallery-grid');
-            if (images.images.length === 0) {
-                grid.innerHTML = `
+      const grid = document.getElementById('gallery-grid');
+      if (images.images.length === 0) {
+        grid.innerHTML = `
           <div class="gallery-empty">
             <div class="gallery-empty-icon">📷</div>
             <h3 class="gallery-empty-title">No public images</h3>
             <p class="gallery-empty-text">This user hasn't shared any images yet.</p>
           </div>
         `;
-            } else {
-                grid.innerHTML = '';
-                Gallery.currentImages = images.images;
-                images.images.forEach((image, index) => {
-                    const card = Gallery.createImageCard(image, 'public', index);
-                    grid.appendChild(card);
-                });
-            }
-        } catch (error) {
-            this.showToast(error.message, 'error');
-            this.navigateTo('/');
-        }
-    },
+      } else {
+        grid.innerHTML = '';
+        Gallery.currentImages = images.images;
+        images.images.forEach((image, index) => {
+          const card = Gallery.createImageCard(image, 'public', index);
+          grid.appendChild(card);
+        });
+      }
+    } catch (error) {
+      this.showToast(error.message, 'error');
+      this.navigateTo('/');
+    }
+  },
 
-    // Render 404 page
-    render404() {
-        return `
+  render404() {
+    return `
       <div class="container">
-        <div class="hero">
-          <h1 class="hero-title" style="font-size: 8rem;">404</h1>
+        <div class="search-hero">
+          <h1 class="search-hero-title" style="font-size: 8rem;">404</h1>
           <h2 style="font-size: var(--font-size-2xl); margin-bottom: var(--space-4);">Page Not Found</h2>
-          <p class="hero-subtitle">The page you're looking for doesn't exist or has been moved.</p>
-          <div class="hero-actions">
-            <a href="/" class="btn btn-primary btn-lg" data-link>Back to Home</a>
-          </div>
+          <p class="search-hero-subtitle">The page you're looking for doesn't exist or has been moved.</p>
+          <a href="/" class="btn btn-primary btn-lg" data-link style="margin-top: var(--space-4);">Back to Search</a>
         </div>
       </div>
     `;
-    },
+  },
 
-    // Setup global events
-    setupGlobalEvents() {
-        // Modal close
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalClose = document.getElementById('modal-close');
+  setupGlobalEvents() {
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalClose = document.getElementById('modal-close');
 
-        modalClose.addEventListener('click', () => this.closeModal());
-        modalOverlay.addEventListener('click', (e) => {
-            if (e.target === modalOverlay) {
-                this.closeModal();
-            }
-        });
+    modalClose.addEventListener('click', () => this.closeModal());
+    modalOverlay.addEventListener('click', (e) => {
+      if (e.target === modalOverlay) {
+        this.closeModal();
+      }
+    });
 
-        // Lightbox
-        const lightbox = document.getElementById('lightbox');
-        const lightboxClose = document.getElementById('lightbox-close');
-        const lightboxPrev = document.getElementById('lightbox-prev');
-        const lightboxNext = document.getElementById('lightbox-next');
+    const lightbox = document.getElementById('lightbox');
+    const lightboxClose = document.getElementById('lightbox-close');
+    const lightboxPrev = document.getElementById('lightbox-prev');
+    const lightboxNext = document.getElementById('lightbox-next');
 
-        lightboxClose.addEventListener('click', () => Gallery.closeLightbox());
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox || e.target.id === 'lightbox-content') {
-                Gallery.closeLightbox();
-            }
-        });
-        lightboxPrev.addEventListener('click', () => Gallery.navigateLightbox(-1));
-        lightboxNext.addEventListener('click', () => Gallery.navigateLightbox(1));
+    lightboxClose.addEventListener('click', () => Gallery.closeLightbox());
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.id === 'lightbox-content') {
+        Gallery.closeLightbox();
+      }
+    });
+    lightboxPrev.addEventListener('click', () => Gallery.navigateLightbox(-1));
+    lightboxNext.addEventListener('click', () => Gallery.navigateLightbox(1));
 
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (lightbox.classList.contains('open')) {
-                if (e.key === 'Escape') Gallery.closeLightbox();
-                if (e.key === 'ArrowLeft') Gallery.navigateLightbox(-1);
-                if (e.key === 'ArrowRight') Gallery.navigateLightbox(1);
-            }
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.classList.contains('open')) {
+        if (e.key === 'Escape') Gallery.closeLightbox();
+        if (e.key === 'ArrowLeft') Gallery.navigateLightbox(-1);
+        if (e.key === 'ArrowRight') Gallery.navigateLightbox(1);
+      }
 
-            if (modalOverlay.classList.contains('open') && e.key === 'Escape') {
-                this.closeModal();
-            }
-        });
-    },
+      if (modalOverlay.classList.contains('open') && e.key === 'Escape') {
+        this.closeModal();
+      }
+    });
+  },
 
-    // Open modal
-    openModal() {
-        document.getElementById('modal-overlay').classList.add('open');
-        document.body.style.overflow = 'hidden';
-    },
+  openModal() {
+    document.getElementById('modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  },
 
-    // Close modal
-    closeModal() {
-        document.getElementById('modal-overlay').classList.remove('open');
-        document.body.style.overflow = '';
-    },
+  closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  },
 
-    // Show toast notification
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+  showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
 
-        const icons = {
-            success: '✓',
-            error: '✕',
-            warning: '⚠',
-            info: 'ℹ',
-        };
+    const icons = {
+      success: '✓',
+      error: '✕',
+      warning: '⚠',
+      info: 'ℹ',
+    };
 
-        toast.innerHTML = `
+    toast.innerHTML = `
       <span class="toast-icon">${icons[type] || icons.info}</span>
       <span class="toast-message">${message}</span>
       <button class="toast-close">&times;</button>
     `;
 
-        container.appendChild(toast);
+    container.appendChild(toast);
 
-        // Close button
-        toast.querySelector('.toast-close').addEventListener('click', () => {
-            toast.remove();
-        });
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+      toast.remove();
+    });
 
-        // Auto remove
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                setTimeout(() => toast.remove(), 200);
-            }
-        }, 5000);
-    },
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 200);
+      }
+    }, 5000);
+  },
 };
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    App.init();
+  App.init();
 });
 
 window.App = App;
