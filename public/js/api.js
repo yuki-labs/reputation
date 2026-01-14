@@ -64,6 +64,17 @@ const API = {
             });
         },
 
+        async updateTags(tags) {
+            return API.request('/auth/me/tags', {
+                method: 'PUT',
+                body: JSON.stringify({ tags }),
+            });
+        },
+
+        async getValidTags() {
+            return API.request('/auth/tags');
+        },
+
         async changePassword(data) {
             return API.request('/auth/change-password', {
                 method: 'POST',
@@ -132,8 +143,12 @@ const API = {
     },
 
     users: {
-        async search(query, page = 1, limit = 20) {
-            return API.request(`/users/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`);
+        async search(query, tag = null, page = 1, limit = 20) {
+            let url = `/users/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`;
+            if (tag) {
+                url += `&tag=${encodeURIComponent(tag)}`;
+            }
+            return API.request(url);
         },
 
         async getProfile(username) {

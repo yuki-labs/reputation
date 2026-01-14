@@ -1,6 +1,8 @@
 // Main App Module - Handles routing and global functionality
 const App = {
   searchTimeout: null,
+  currentTagFilter: null,
+  validTags: ['buying', 'selling', 'lending', 'borrowing', 'looking'],
 
   async init() {
     await Auth.init();
@@ -88,7 +90,30 @@ const App = {
     window.scrollTo(0, 0);
   },
 
-  // Search page - main interface
+  // Tag colors
+  getTagColor(tag) {
+    const colors = {
+      buying: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' },
+      selling: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
+      lending: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' },
+      borrowing: { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7', border: 'rgba(168, 85, 247, 0.3)' },
+      looking: { bg: 'rgba(251, 146, 60, 0.15)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' }
+    };
+    return colors[tag] || { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border-default)' };
+  },
+
+  renderTag(tag, clickable = false) {
+    const color = this.getTagColor(tag);
+    const clickAttr = clickable ? `data-tag-filter="${tag}"` : '';
+    return `<span class="tag" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">${tag}</span>`;
+  },
+
+  renderTags(tags, clickable = false) {
+    if (!tags || tags.length === 0) return '';
+    return `<div class="tags-container">${tags.map(t => this.renderTag(t, clickable)).join('')}</div>`;
+  },
+
+  // Search page
   renderSearchPage() {
     return `
       <div class="container">
@@ -113,6 +138,15 @@ const App = {
               >
               <div class="search-spinner" id="search-spinner" style="display: none;"></div>
             </div>
+            
+            <div class="tag-filters" id="tag-filters">
+              <span class="tag-filter-label">Filter by:</span>
+              ${this.validTags.map(tag => `
+                <button class="tag-filter-btn" data-tag="${tag}">
+                  ${this.renderTag(tag)}
+                </button>
+              `).join('')}
+            </div>
           </div>
         </div>
 
@@ -130,55 +164,81 @@ const App = {
     const searchInput = document.getElementById('search-input');
     const searchResults = document.getElementById('search-results');
     const searchSpinner = document.getElementById('search-spinner');
+    const tagFilters = document.getElementById('tag-filters');
+
+    this.currentTagFilter = null;
+
+    // Tag filter clicks
+    tagFilters.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tag-filter-btn');
+      if (!btn) return;
+
+      const tag = btn.dataset.tag;
+
+      // Toggle active state
+      if (this.currentTagFilter === tag) {
+        this.currentTagFilter = null;
+        btn.classList.remove('active');
+      } else {
+        document.querySelectorAll('.tag-filter-btn').forEach(b => b.classList.remove('active'));
+        this.currentTagFilter = tag;
+        btn.classList.add('active');
+      }
+
+      // Re-trigger search
+      this.performSearch(searchInput.value.trim(), searchResults, searchSpinner);
+    });
 
     searchInput.addEventListener('input', (e) => {
       const query = e.target.value.trim();
-
-      clearTimeout(this.searchTimeout);
-
-      if (query.length < 2) {
-        searchResults.innerHTML = `
-          <div class="search-placeholder">
-            <div class="search-placeholder-icon">👥</div>
-            <p>${query.length === 0 ? 'Start typing to search for users' : 'Type at least 2 characters'}</p>
-          </div>
-        `;
-        return;
-      }
-
-      searchSpinner.style.display = 'block';
-
-      this.searchTimeout = setTimeout(async () => {
-        try {
-          const data = await API.users.search(query);
-          searchSpinner.style.display = 'none';
-
-          if (data.users.length === 0) {
-            searchResults.innerHTML = `
-              <div class="search-placeholder">
-                <div class="search-placeholder-icon">🔍</div>
-                <p>No users found for "${query}"</p>
-              </div>
-            `;
-          } else {
-            searchResults.innerHTML = `
-              <div class="search-results-header">
-                <span>${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} found</span>
-              </div>
-              <div class="user-grid" id="user-grid">
-                ${data.users.map(user => this.renderUserCard(user)).join('')}
-              </div>
-            `;
-          }
-        } catch (error) {
-          searchSpinner.style.display = 'none';
-          this.showToast(error.message, 'error');
-        }
-      }, 300);
+      this.performSearch(query, searchResults, searchSpinner);
     });
 
-    // Focus search on page load
     searchInput.focus();
+  },
+
+  performSearch(query, searchResults, searchSpinner) {
+    clearTimeout(this.searchTimeout);
+
+    if (query.length < 2) {
+      searchResults.innerHTML = `
+        <div class="search-placeholder">
+          <div class="search-placeholder-icon">👥</div>
+          <p>${query.length === 0 ? 'Start typing to search for users' : 'Type at least 2 characters'}</p>
+        </div>
+      `;
+      return;
+    }
+
+    searchSpinner.style.display = 'block';
+
+    this.searchTimeout = setTimeout(async () => {
+      try {
+        const data = await API.users.search(query, this.currentTagFilter);
+        searchSpinner.style.display = 'none';
+
+        if (data.users.length === 0) {
+          searchResults.innerHTML = `
+            <div class="search-placeholder">
+              <div class="search-placeholder-icon">🔍</div>
+              <p>No users found for "${query}"${this.currentTagFilter ? ` with tag "${this.currentTagFilter}"` : ''}</p>
+            </div>
+          `;
+        } else {
+          searchResults.innerHTML = `
+            <div class="search-results-header">
+              <span>${data.pagination.total} user${data.pagination.total !== 1 ? 's' : ''} found</span>
+            </div>
+            <div class="user-grid" id="user-grid">
+              ${data.users.map(user => this.renderUserCard(user)).join('')}
+            </div>
+          `;
+        }
+      } catch (error) {
+        searchSpinner.style.display = 'none';
+        this.showToast(error.message, 'error');
+      }
+    }, 300);
   },
 
   renderUserCard(user) {
@@ -200,6 +260,7 @@ const App = {
         <div class="user-card-info">
           <h3 class="user-card-name">${user.displayName || user.username}</h3>
           <p class="user-card-username">@${user.username}</p>
+          ${this.renderTags(user.tags)}
           ${user.bio ? `<p class="user-card-bio">${user.bio}</p>` : ''}
         </div>
         <div class="user-card-stats">
@@ -231,6 +292,7 @@ const App = {
           <div class="profile-info">
             <h1 class="profile-name">${user.displayName || user.username}</h1>
             <p class="profile-username">@${user.username}</p>
+            ${this.renderTags(user.tags)}
             ${user.bio ? `<p class="profile-bio">${user.bio}</p>` : ''}
             <div class="profile-stats" id="profile-stats">
               <div class="loading"><div class="spinner"></div></div>
@@ -323,6 +385,32 @@ const App = {
           </form>
         </div>
 
+        <div class="card" style="padding: var(--space-6); margin-bottom: var(--space-6);">
+          <h2 style="font-size: var(--font-size-xl); font-weight: 600; margin-bottom: var(--space-4);">
+            Activity Tags
+          </h2>
+          <p style="color: var(--text-tertiary); margin-bottom: var(--space-6); font-size: var(--font-size-sm);">
+            Select tags that describe what you're looking for. Others can filter by these tags.
+          </p>
+          
+          <div class="tag-selector" id="tag-selector">
+            ${this.validTags.map(tag => {
+      const isActive = user.tags && user.tags.includes(tag);
+      const color = this.getTagColor(tag);
+      return `
+                <label class="tag-checkbox ${isActive ? 'active' : ''}" style="--tag-bg: ${color.bg}; --tag-color: ${color.text}; --tag-border: ${color.border};">
+                  <input type="checkbox" name="tags" value="${tag}" ${isActive ? 'checked' : ''}>
+                  <span class="tag-checkbox-label">${tag}</span>
+                </label>
+              `;
+    }).join('')}
+          </div>
+
+          <button type="button" class="btn btn-primary" id="tags-submit" style="margin-top: var(--space-6);">
+            Save Tags
+          </button>
+        </div>
+
         <div class="card" style="padding: var(--space-6);">
           <h2 style="font-size: var(--font-size-xl); font-weight: 600; margin-bottom: var(--space-6);">
             Change Password
@@ -356,6 +444,37 @@ const App = {
   },
 
   initSettingsPage() {
+    // Tag selector interactivity
+    const tagSelector = document.getElementById('tag-selector');
+    tagSelector.addEventListener('change', (e) => {
+      const label = e.target.closest('.tag-checkbox');
+      if (label) {
+        label.classList.toggle('active', e.target.checked);
+      }
+    });
+
+    // Save tags
+    document.getElementById('tags-submit').addEventListener('click', async () => {
+      const checkboxes = document.querySelectorAll('#tag-selector input[type="checkbox"]:checked');
+      const tags = Array.from(checkboxes).map(cb => cb.value);
+
+      const btn = document.getElementById('tags-submit');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        await API.auth.updateTags(tags);
+        await Auth.init();
+        this.showToast('Tags updated', 'success');
+      } catch (error) {
+        this.showToast(error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Tags';
+      }
+    });
+
+    // Profile form
     const profileForm = document.getElementById('profile-form');
     profileForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -379,6 +498,7 @@ const App = {
       }
     });
 
+    // Password form
     const passwordForm = document.getElementById('password-form');
     passwordForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -455,6 +575,7 @@ const App = {
         <div class="profile-info">
           <h1 class="profile-name">${user.displayName || user.username}</h1>
           <p class="profile-username">@${user.username}</p>
+          ${this.renderTags(user.tags)}
           ${user.bio ? `<p class="profile-bio">${user.bio}</p>` : ''}
           <div class="profile-stats">
             <div class="profile-stat">

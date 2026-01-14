@@ -16,6 +16,9 @@ if (!fs.existsSync(STORAGE_DIR)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
+// Valid user tags
+const VALID_TAGS = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
+
 async function initializeDatabase() {
   const client = await pool.connect();
 
@@ -40,6 +43,20 @@ async function initializeDatabase() {
     // Create indexes for users
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+
+    // User tags table (many-to-many relationship)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_tags (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        tag TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, tag)
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_user_tags_user_id ON user_tags(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_user_tags_tag ON user_tags(tag)`);
 
     // Images table
     await client.query(`
@@ -96,4 +113,8 @@ function getStoragePath() {
   return STORAGE_DIR;
 }
 
-module.exports = { getPool, initializeDatabase, getStoragePath };
+function getValidTags() {
+  return VALID_TAGS;
+}
+
+module.exports = { getPool, initializeDatabase, getStoragePath, getValidTags };

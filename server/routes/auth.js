@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { getPool } = require('../database/init');
+const { getPool, getValidTags } = require('../database/init');
 const { authenticateToken, generateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -23,6 +23,15 @@ function validatePassword(password) {
         /[A-Z]/.test(password) &&
         /[a-z]/.test(password) &&
         /[0-9]/.test(password);
+}
+
+// Helper to get user tags
+async function getUserTags(pool, userId) {
+    const result = await pool.query(
+        'SELECT tag FROM user_tags WHERE user_id = $1 ORDER BY tag',
+        [userId]
+    );
+    return result.rows.map(row => row.tag);
 }
 
 // Register
@@ -52,7 +61,6 @@ router.post('/register', async (req, res, next) => {
 
         const pool = getPool();
 
-        // Check for existing user
         const existingUser = await pool.query(
             'SELECT id FROM users WHERE username = $1 OR email = $2',
             [username.toLowerCase(), email.toLowerCase()]
@@ -62,10 +70,8 @@ router.post('/register', async (req, res, next) => {
             return res.status(409).json({ error: 'Username or email already exists' });
         }
 
-        // Hash password
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-        // Create user
         const userId = uuidv4();
         await pool.query(
             `INSERT INTO users (id, username, email, password_hash, display_name)
@@ -73,10 +79,8 @@ router.post('/register', async (req, res, next) => {
             [userId, username.toLowerCase(), email.toLowerCase(), passwordHash, displayName || username]
         );
 
-        // Generate token
         const token = generateToken(userId);
 
-        // Set cookie
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -90,7 +94,8 @@ router.post('/register', async (req, res, next) => {
                 id: userId,
                 username: username.toLowerCase(),
                 email: email.toLowerCase(),
-                displayName: displayName || username
+                displayName: displayName || username,
+                tags: []
             }
         });
     } catch (error) {
@@ -132,6 +137,7 @@ router.post('/login', async (req, res, next) => {
         }
 
         const token = generateToken(user.id);
+        const tags = await getUserTags(pool, user.id);
 
         res.cookie('token', token, {
             httpOnly: true,
@@ -147,7 +153,8 @@ router.post('/login', async (req, res, next) => {
                 username: user.username,
                 email: user.email,
                 displayName: user.display_name,
-                avatarUrl: user.avatar_url
+                avatarUrl: user.avatar_url,
+                tags
             }
         });
     } catch (error) {
@@ -177,6 +184,8 @@ router.get('/me', authenticateToken, async (req, res, next) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        const tags = await getUserTags(pool, user.id);
+
         res.json({
             id: user.id,
             username: user.username,
@@ -184,7 +193,8 @@ router.get('/me', authenticateToken, async (req, res, next) => {
             displayName: user.display_name,
             avatarUrl: user.avatar_url,
             bio: user.bio,
-            createdAt: user.created_at
+            createdAt: user.created_at,
+            tags
         });
     } catch (error) {
         next(error);
@@ -210,6 +220,48 @@ router.patch('/me', authenticateToken, async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+});
+
+// Update user tags
+router.put('/me/tags', authenticateToken, async (req, res, next) => {
+    try {
+        const { tags } = req.body;
+        const validTags = getValidTags();
+
+        if (!Array.isArray(tags)) {
+            return res.status(400).json({ error: 'Tags must be an array' });
+        }
+
+        // Validate all tags
+        const invalidTags = tags.filter(tag => !validTags.includes(tag));
+        if (invalidTags.length > 0) {
+            return res.status(400).json({
+                error: `Invalid tags: ${invalidTags.join(', ')}. Valid tags are: ${validTags.join(', ')}`
+            });
+        }
+
+        const pool = getPool();
+
+        // Delete existing tags
+        await pool.query('DELETE FROM user_tags WHERE user_id = $1', [req.user.id]);
+
+        // Insert new tags
+        for (const tag of tags) {
+            await pool.query(
+                'INSERT INTO user_tags (id, user_id, tag) VALUES ($1, $2, $3)',
+                [uuidv4(), req.user.id, tag]
+            );
+        }
+
+        res.json({ message: 'Tags updated', tags });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get valid tags
+router.get('/tags', (req, res) => {
+    res.json({ tags: getValidTags() });
 });
 
 // Change password
