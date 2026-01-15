@@ -914,13 +914,19 @@ const App = {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    container.innerHTML = messages.map(msg => {
+    // Get any message currently being edited
+    const editingEl = container.querySelector('.message.editing');
+    const editingMessageId = editingEl ? editingEl.dataset.messageId : null;
+    const editingContent = editingEl ? editingEl.querySelector('.message-edit-input')?.value : null;
+
+    // Build new messages HTML
+    const newMessagesHtml = messages.map(msg => {
       const isMine = msg.sender_id === Auth.currentUser.id;
       const isDeleted = msg.is_deleted;
 
       if (isDeleted) {
         return `
-          <div class="message ${isMine ? 'sent' : 'received'}">
+          <div class="message ${isMine ? 'sent' : 'received'}" data-message-id="${msg.id}">
             <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
             <div class="message-bubble message-deleted">
               <em>This message was deleted</em>
@@ -961,8 +967,33 @@ const App = {
       `;
     }).join('');
 
-    // Scroll to bottom
-    container.scrollTop = container.scrollHeight;
+    container.innerHTML = newMessagesHtml;
+
+    // Restore editing state if we were editing a message
+    if (editingMessageId && editingContent !== null) {
+      const messageEl = container.querySelector(`[data-message-id="${editingMessageId}"]`);
+      if (messageEl) {
+        const editBtn = messageEl.querySelector('.message-action-btn');
+        if (editBtn) {
+          // Re-enter edit mode
+          this.editMessage(editingMessageId, editBtn);
+          // Restore the text content after a brief delay to let editMessage setup
+          setTimeout(() => {
+            const textarea = messageEl.querySelector('.message-edit-input');
+            if (textarea) {
+              textarea.value = editingContent;
+              textarea.focus();
+              textarea.setSelectionRange(editingContent.length, editingContent.length);
+            }
+          }, 0);
+        }
+      }
+    }
+
+    // Scroll to bottom only if not editing
+    if (!editingMessageId) {
+      container.scrollTop = container.scrollHeight;
+    }
   },
 
   renderMessageContent(msg) {
@@ -1291,10 +1322,6 @@ const App = {
     // Refresh messages every 5 seconds
     this.messageRefreshInterval = setInterval(async () => {
       if (!this.currentConversationId) return;
-
-      // Skip refresh if a message is being edited
-      const editingMessage = document.querySelector('.message.editing');
-      if (editingMessage) return;
 
       try {
         const data = await API.messages.getMessages(this.currentConversationId);
