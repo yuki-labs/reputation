@@ -308,21 +308,54 @@ const Auth = {
 };
 
 // Check for OAuth callback status on page load
-document.addEventListener('DOMContentLoaded', () => {
+// This runs early to capture the URL params before they're cleared
+(function checkOAuthCallback() {
   const urlParams = new URLSearchParams(window.location.search);
 
   if (urlParams.get('oauth') === 'success') {
-    // Clear the URL parameter
+    // Store flag to show success message after app initializes
+    sessionStorage.setItem('oauth_success', 'true');
+    // Clear the URL parameter immediately
     window.history.replaceState({}, document.title, window.location.pathname);
-    // Auth.init() will be called by App.init() and will pick up the session
   }
 
   if (urlParams.get('error')) {
     const error = urlParams.get('error');
+    sessionStorage.setItem('oauth_error', error);
     window.history.replaceState({}, document.title, window.location.pathname);
-    App.showToast(`Login failed: ${error.replace(/_/g, ' ')}`, 'error');
   }
-});
+})();
+
+// Hook into Auth.init to show OAuth messages after authentication loads
+const originalAuthInit = Auth.init.bind(Auth);
+Auth.init = async function () {
+  await originalAuthInit();
+
+  // Check for OAuth success/error after auth state is loaded
+  const oauthSuccess = sessionStorage.getItem('oauth_success');
+  const oauthError = sessionStorage.getItem('oauth_error');
+
+  if (oauthSuccess) {
+    sessionStorage.removeItem('oauth_success');
+    if (this.isLoggedIn()) {
+      // Small delay to ensure App is ready
+      setTimeout(() => {
+        if (window.App && window.App.showToast) {
+          window.App.showToast(`Welcome, ${this.currentUser.displayName || this.currentUser.username}!`, 'success');
+        }
+      }, 100);
+    }
+  }
+
+  if (oauthError) {
+    sessionStorage.removeItem('oauth_error');
+    setTimeout(() => {
+      if (window.App && window.App.showToast) {
+        window.App.showToast(`Login failed: ${oauthError.replace(/_/g, ' ')}`, 'error');
+      }
+    }, 100);
+  }
+};
 
 window.Auth = Auth;
 

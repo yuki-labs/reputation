@@ -11,11 +11,18 @@ function configurePassport() {
         return;
     }
 
+    // Build callback URL - use RAILWAY_PUBLIC_DOMAIN or APP_URL if available
+    const baseUrl = process.env.APP_URL ||
+        (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null);
+    const callbackURL = baseUrl ? `${baseUrl}/api/auth/google/callback` : '/api/auth/google/callback';
+
+    console.log(`Google OAuth callback URL: ${callbackURL}`);
+
     passport.use(new GoogleStrategy({
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback',
-        scope: ['profile', 'email']
+        callbackURL: callbackURL,
+        proxy: true  // Trust the proxy (Railway)
     },
         async (accessToken, refreshToken, profile, done) => {
             try {
