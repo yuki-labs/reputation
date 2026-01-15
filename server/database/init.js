@@ -118,6 +118,38 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`);
 
+    // Conversations table (for DMs between two users)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        user1_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user2_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user1_id, user2_id)
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user1 ON conversations(user1_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_user2 ON conversations(user2_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON conversations(last_message_at DESC)`);
+
+    // Messages table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
+
     console.log('Database initialized successfully');
   } finally {
     client.release();

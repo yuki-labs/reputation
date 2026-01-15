@@ -71,11 +71,20 @@ const App = {
         initFn = () => this.initSettingsPage();
         break;
 
+      case '/messages':
+        html = await this.renderMessagesPage();
+        initFn = () => this.initMessagesPage();
+        break;
+
       default:
         if (path.startsWith('/u/')) {
           const username = path.split('/')[2];
           html = await this.renderUserProfile(username);
           initFn = () => this.initUserProfile(username);
+        } else if (path.startsWith('/messages/')) {
+          const conversationId = path.split('/')[2];
+          html = await this.renderMessagesPage(conversationId);
+          initFn = () => this.initMessagesPage(conversationId);
         } else {
           html = this.render404();
         }
@@ -703,8 +712,24 @@ const App = {
               <div class="profile-stat-label">Images</div>
             </div>
           </div>
+          ${Auth.currentUser && Auth.currentUser.id !== user.id ? `
+            <button class="profile-message-btn" id="message-user-btn" data-user-id="${user.id}">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+              </svg>
+              Message
+            </button>
+          ` : ''}
         </div>
       `;
+
+      // Add message button handler
+      const messageBtn = document.getElementById('message-user-btn');
+      if (messageBtn) {
+        messageBtn.addEventListener('click', () => {
+          this.startConversationWith(messageBtn.dataset.userId);
+        });
+      }
 
       document.getElementById('user-gallery-title').textContent = `${user.displayName || user.username}'s Images`;
 
@@ -728,6 +753,268 @@ const App = {
     } catch (error) {
       this.showToast(error.message, 'error');
       this.navigateTo('/');
+    }
+  },
+
+  // Messages Page
+  currentConversationId: null,
+  messageRefreshInterval: null,
+
+  async renderMessagesPage(conversationId = null) {
+    if (!Auth.currentUser) {
+      return `
+        <div class="container">
+          <div class="search-hero">
+            <h1 class="search-hero-title">Messages</h1>
+            <p class="search-hero-subtitle">Please log in to view your messages.</p>
+            <button class="btn btn-primary btn-lg" onclick="Auth.showAuthModal('login')">Login</button>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="container" style="max-width: 1200px;">
+        <div class="messages-container">
+          <div class="conversation-list" id="conversation-list">
+            <div class="conversation-list-header">Messages</div>
+            <div id="conversations-container">
+              <div class="conversation-empty">
+                <p>Loading conversations...</p>
+              </div>
+            </div>
+          </div>
+          <div class="chat-area" id="chat-area">
+            <div class="no-chat-selected" id="no-chat-selected">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+              </svg>
+              <h3>Select a conversation</h3>
+              <p>Choose a conversation from the list or start a new one from someone's profile.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async initMessagesPage(conversationId = null) {
+    if (!Auth.currentUser) return;
+
+    await this.loadConversations();
+
+    if (conversationId) {
+      this.openConversation(conversationId);
+    }
+  },
+
+  async loadConversations() {
+    try {
+      const data = await API.messages.getConversations();
+      const container = document.getElementById('conversations-container');
+
+      if (data.conversations.length === 0) {
+        container.innerHTML = `
+          <div class="conversation-empty">
+            <p>No conversations yet</p>
+            <p style="font-size: var(--font-size-sm); margin-top: var(--space-2);">Start a conversation from someone's profile</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = data.conversations.map(conv => `
+        <div class="conversation-item" data-conversation-id="${conv.id}">
+          <div class="conversation-avatar">
+            ${conv.other_avatar_url
+          ? `<img src="${conv.other_avatar_url}" alt="${conv.other_display_name || conv.other_username}">`
+          : (conv.other_display_name || conv.other_username || '?').charAt(0).toUpperCase()
+        }
+          </div>
+          <div class="conversation-info">
+            <div class="conversation-name">${conv.other_display_name || conv.other_username}</div>
+            <div class="conversation-preview">${conv.last_message || 'No messages yet'}</div>
+          </div>
+          <div class="conversation-meta">
+            <div class="conversation-time">${this.formatMessageTime(conv.last_message_at)}</div>
+            ${conv.unread_count > 0 ? `<div class="conversation-unread">${conv.unread_count}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      container.querySelectorAll('.conversation-item').forEach(item => {
+        item.addEventListener('click', () => {
+          this.openConversation(item.dataset.conversationId);
+        });
+      });
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    }
+  },
+
+  async openConversation(conversationId) {
+    this.currentConversationId = conversationId;
+
+    // Update active state
+    document.querySelectorAll('.conversation-item').forEach(item => {
+      item.classList.toggle('active', item.dataset.conversationId === conversationId);
+    });
+
+    try {
+      const data = await API.messages.getMessages(conversationId);
+      const convData = await API.messages.getConversations();
+      const conv = convData.conversations.find(c => c.id === conversationId);
+
+      if (!conv) return;
+
+      const chatArea = document.getElementById('chat-area');
+      chatArea.innerHTML = `
+        <div class="chat-header">
+          <div class="chat-header-avatar">
+            ${conv.other_avatar_url
+          ? `<img src="${conv.other_avatar_url}" alt="${conv.other_display_name || conv.other_username}">`
+          : (conv.other_display_name || conv.other_username || '?').charAt(0).toUpperCase()
+        }
+          </div>
+          <div class="chat-header-info">
+            <div class="chat-header-name">${conv.other_display_name || conv.other_username}</div>
+            <div class="chat-header-username">@${conv.other_username}</div>
+          </div>
+          <a href="/u/${conv.other_username}" class="btn btn-secondary" data-link style="margin-left: auto;">View Profile</a>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
+          <button class="chat-send-btn" id="send-message-btn">Send</button>
+        </div>
+      `;
+
+      this.renderMessages(data.messages);
+      this.setupMessageInput();
+      this.startMessageRefresh();
+
+      // Refresh conversations to clear unread count
+      this.loadConversations();
+    } catch (error) {
+      console.error('Failed to open conversation:', error);
+      this.showToast('Failed to load conversation', 'error');
+    }
+  },
+
+  renderMessages(messages) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+
+    container.innerHTML = messages.map(msg => `
+      <div class="message ${msg.sender_id === Auth.currentUser.id ? 'sent' : 'received'}">
+        <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
+        <div class="message-bubble">${this.escapeHtml(msg.content)}</div>
+      </div>
+    `).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  },
+
+  setupMessageInput() {
+    const input = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-message-btn');
+    if (!input || !sendBtn) return;
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    // Send on Enter (but not Shift+Enter)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this.sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener('click', () => this.sendMessage());
+  },
+
+  async sendMessage() {
+    const input = document.getElementById('message-input');
+    const content = input.value.trim();
+    if (!content || !this.currentConversationId) return;
+
+    const sendBtn = document.getElementById('send-message-btn');
+    sendBtn.disabled = true;
+
+    try {
+      const data = await API.messages.sendMessage(this.currentConversationId, content);
+      input.value = '';
+      input.style.height = 'auto';
+
+      // Add message to chat
+      const container = document.getElementById('chat-messages');
+      const msgHtml = `
+        <div class="message sent">
+          <div class="message-time">${this.formatMessageTime(data.message.created_at)}</div>
+          <div class="message-bubble">${this.escapeHtml(data.message.content)}</div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', msgHtml);
+      container.scrollTop = container.scrollHeight;
+
+      // Update conversation list
+      this.loadConversations();
+    } catch (error) {
+      this.showToast('Failed to send message', 'error');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  },
+
+  startMessageRefresh() {
+    // Clear existing interval
+    if (this.messageRefreshInterval) {
+      clearInterval(this.messageRefreshInterval);
+    }
+
+    // Refresh messages every 5 seconds
+    this.messageRefreshInterval = setInterval(async () => {
+      if (!this.currentConversationId) return;
+
+      try {
+        const data = await API.messages.getMessages(this.currentConversationId);
+        this.renderMessages(data.messages);
+      } catch (error) {
+        console.error('Failed to refresh messages:', error);
+      }
+    }, 5000);
+  },
+
+  formatMessageTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+
+    if (diff < 60000) return 'now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+    if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diff < 604800000) return date.toLocaleDateString([], { weekday: 'short' });
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  },
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  },
+
+  async startConversationWith(userId) {
+    try {
+      const data = await API.messages.startConversation(userId);
+      this.navigateTo(`/messages/${data.conversationId}`);
+    } catch (error) {
+      this.showToast('Failed to start conversation', 'error');
     }
   },
 

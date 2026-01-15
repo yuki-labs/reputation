@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const imageRoutes = require('./routes/images');
 const userRoutes = require('./routes/users');
 const oauthRoutes = require('./routes/oauth');
+const messageRoutes = require('./routes/messages');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth', oauthRoutes);  // OAuth routes under /api/auth
 app.use('/api/images', imageRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/messages', messageRoutes);
 
 // SPA fallback - serve index.html for client-side routing
 app.get('*', (req, res) => {

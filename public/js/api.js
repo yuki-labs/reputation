@@ -170,6 +170,38 @@ const API = {
             return API.request(`/users/${username}/images?page=${page}&limit=${limit}`);
         },
     },
+
+    messages: {
+        async getConversations() {
+            return API.request('/messages/conversations');
+        },
+
+        async startConversation(userId) {
+            return API.request('/messages/conversations', {
+                method: 'POST',
+                body: JSON.stringify({ userId }),
+            });
+        },
+
+        async getMessages(conversationId, before = null, limit = 50) {
+            let url = `/messages/conversations/${conversationId}/messages?limit=${limit}`;
+            if (before) {
+                url += `&before=${encodeURIComponent(before)}`;
+            }
+            return API.request(url);
+        },
+
+        async sendMessage(conversationId, content) {
+            return API.request(`/messages/conversations/${conversationId}/messages`, {
+                method: 'POST',
+                body: JSON.stringify({ content }),
+            });
+        },
+
+        async getUnreadCount() {
+            return API.request('/messages/unread-count');
+        },
+    },
 };
 
 window.API = API;

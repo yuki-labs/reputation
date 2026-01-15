@@ -48,6 +48,9 @@ const Auth = {
             <a href="/profile" class="user-dropdown-item" data-link>
               <span>👤</span> My Profile
             </a>
+            <a href="/messages" class="user-dropdown-item" data-link>
+              <span>💬</span> Messages <span id="unread-badge" class="nav-message-badge" style="display: none;"></span>
+            </a>
             <a href="/my-images" class="user-dropdown-item" data-link>
               <span>🖼️</span> My Images
             </a>
@@ -68,6 +71,7 @@ const Auth = {
       }
 
       this.setupUserMenu();
+      this.updateUnreadBadge();
     } else {
       headerActions.innerHTML = `
         <button class="btn btn-ghost" id="login-btn">Login</button>
@@ -109,6 +113,25 @@ const Auth = {
         App.showToast(error.message, 'error');
       }
     });
+  },
+
+  async updateUnreadBadge() {
+    if (!this.currentUser) return;
+
+    try {
+      const data = await API.messages.getUnreadCount();
+      const badge = document.getElementById('unread-badge');
+      if (badge) {
+        if (data.unreadCount > 0) {
+          badge.textContent = data.unreadCount > 99 ? '99+' : data.unreadCount;
+          badge.style.display = 'inline';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get unread count:', error);
+    }
   },
 
   showAuthModal(mode = 'login') {
