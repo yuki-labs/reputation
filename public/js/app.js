@@ -887,6 +887,12 @@ const App = {
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input-area">
+          <input type="file" id="attachment-input" accept="image/*,video/*,audio/*" style="display: none;">
+          <button class="chat-attach-btn" id="attach-btn" title="Send file">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+            </svg>
+          </button>
           <textarea class="chat-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
           <button class="chat-send-btn" id="send-message-btn">Send</button>
         </div>
@@ -911,7 +917,9 @@ const App = {
     container.innerHTML = messages.map(msg => `
       <div class="message ${msg.sender_id === Auth.currentUser.id ? 'sent' : 'received'}">
         <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
-        <div class="message-bubble">${this.escapeHtml(msg.content)}</div>
+        <div class="message-bubble">
+          ${this.renderMessageContent(msg)}
+        </div>
       </div>
     `).join('');
 
@@ -919,9 +927,42 @@ const App = {
     container.scrollTop = container.scrollHeight;
   },
 
+  renderMessageContent(msg) {
+    let html = '';
+
+    // Render attachment if present
+    if (msg.attachment_url) {
+      if (msg.attachment_type === 'image') {
+        html += `<img src="${msg.attachment_url}" alt="${msg.attachment_name || 'Image'}" class="message-image" onclick="App.openLightbox('${msg.attachment_url}')">`;
+      } else if (msg.attachment_type === 'video') {
+        html += `<video src="${msg.attachment_url}" controls class="message-video" preload="metadata"></video>`;
+      } else if (msg.attachment_type === 'audio') {
+        html += `<audio src="${msg.attachment_url}" controls class="message-audio" preload="metadata"></audio>`;
+      }
+    }
+
+    // Render text content if present
+    if (msg.content) {
+      html += `<span class="message-text">${this.escapeHtml(msg.content)}</span>`;
+    }
+
+    return html;
+  },
+
+  openLightbox(url) {
+    const lightbox = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-image');
+    if (lightbox && img) {
+      img.src = url;
+      lightbox.classList.add('open');
+    }
+  },
+
   setupMessageInput() {
     const input = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-message-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const fileInput = document.getElementById('attachment-input');
     if (!input || !sendBtn) return;
 
     // Auto-resize textarea
@@ -939,6 +980,62 @@ const App = {
     });
 
     sendBtn.addEventListener('click', () => this.sendMessage());
+
+    // Attachment handling
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Check file size (max 50MB)
+        if (file.size > 50 * 1024 * 1024) {
+          this.showToast('File too large. Maximum size is 50MB.', 'error');
+          fileInput.value = '';
+          return;
+        }
+
+        await this.sendAttachment(file);
+        fileInput.value = '';
+      });
+    }
+  },
+
+  async sendAttachment(file) {
+    if (!this.currentConversationId) return;
+
+    const sendBtn = document.getElementById('send-message-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    if (sendBtn) sendBtn.disabled = true;
+    if (attachBtn) attachBtn.disabled = true;
+
+    try {
+      this.showToast('Uploading file...', 'info');
+      const data = await API.messages.sendAttachment(this.currentConversationId, file);
+
+      // Add message to chat
+      const container = document.getElementById('chat-messages');
+      const msgHtml = `
+        <div class="message sent">
+          <div class="message-time">${this.formatMessageTime(data.message.created_at)}</div>
+          <div class="message-bubble">
+            ${this.renderMessageContent(data.message)}
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', msgHtml);
+      container.scrollTop = container.scrollHeight;
+
+      // Update conversation list
+      this.loadConversations();
+      this.showToast('File sent!', 'success');
+    } catch (error) {
+      this.showToast(error.message || 'Failed to send file', 'error');
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+      if (attachBtn) attachBtn.disabled = false;
+    }
   },
 
   async sendMessage() {

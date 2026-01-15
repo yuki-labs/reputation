@@ -198,6 +198,27 @@ const API = {
             });
         },
 
+        async sendAttachment(conversationId, file, content = null) {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (content) {
+                formData.append('content', content);
+            }
+
+            const response = await fetch(`/api/messages/conversations/${conversationId}/attachment`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to send attachment');
+            }
+
+            return response.json();
+        },
+
         async getUnreadCount() {
             return API.request('/messages/unread-count');
         },

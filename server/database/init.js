@@ -140,7 +140,10 @@ async function initializeDatabase() {
         id TEXT PRIMARY KEY,
         conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
         sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
+        content TEXT,
+        attachment_url TEXT,
+        attachment_type TEXT,
+        attachment_name TEXT,
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
