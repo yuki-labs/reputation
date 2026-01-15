@@ -287,11 +287,22 @@
     opacity: 0.5;
 }
 
+/* Profile avatar container - stacks avatar and message button */
+.profile-avatar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    flex-shrink: 0;
+}
+
 /* Message button on profile */
 .profile-message-btn {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-2);
+    width: 100%;
     padding: var(--space-3) var(--space-5);
     background: var(--primary-500);
     color: white;

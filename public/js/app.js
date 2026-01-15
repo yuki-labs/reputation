@@ -695,11 +695,21 @@ const App = {
 
       const header = document.getElementById('user-profile-header');
       header.innerHTML = `
-        <div class="profile-avatar">
-          ${user.avatarUrl
+        <div class="profile-avatar-container">
+          <div class="profile-avatar">
+            ${user.avatarUrl
           ? `<img src="${user.avatarUrl}" alt="${user.displayName}">`
           : initials
         }
+          </div>
+          ${Auth.currentUser && Auth.currentUser.id !== user.id ? `
+            <button class="profile-message-btn" id="message-user-btn" data-user-id="${user.id}">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+              </svg>
+              Message
+            </button>
+          ` : ''}
         </div>
         <div class="profile-info">
           <h1 class="profile-name">${user.displayName || user.username}</h1>
@@ -712,14 +722,6 @@ const App = {
               <div class="profile-stat-label">Images</div>
             </div>
           </div>
-          ${Auth.currentUser && Auth.currentUser.id !== user.id ? `
-            <button class="profile-message-btn" id="message-user-btn" data-user-id="${user.id}">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-              </svg>
-              Message
-            </button>
-          ` : ''}
         </div>
       `;
 
