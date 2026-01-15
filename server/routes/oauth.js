@@ -49,22 +49,52 @@ router.get('/google/callback',
     }),
     async (req, res) => {
         try {
-            // Create session token for the authenticated user
             const token = await createSessionToken(req.user, req);
-
-            // Set cookie and redirect to home
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                maxAge: 7 * 24 * 60 * 60 * 1000,
                 path: '/'
             });
-
-            // Redirect to home page with success parameter
             res.redirect('/?oauth=success');
         } catch (error) {
             console.error('OAuth callback error:', error);
+            res.redirect('/?error=oauth_error');
+        }
+    }
+);
+
+// Discord OAuth - Initiate
+router.get('/discord', (req, res, next) => {
+    if (!process.env.DISCORD_CLIENT_ID) {
+        return res.status(503).json({ error: 'Discord OAuth is not configured' });
+    }
+    passport.authenticate('discord', {
+        scope: ['identify', 'email'],
+        session: false
+    })(req, res, next);
+});
+
+// Discord OAuth - Callback
+router.get('/discord/callback',
+    passport.authenticate('discord', {
+        session: false,
+        failureRedirect: '/?error=oauth_failed'
+    }),
+    async (req, res) => {
+        try {
+            const token = await createSessionToken(req.user, req);
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+                path: '/'
+            });
+            res.redirect('/?oauth=success');
+        } catch (error) {
+            console.error('Discord OAuth callback error:', error);
             res.redirect('/?error=oauth_error');
         }
     }
