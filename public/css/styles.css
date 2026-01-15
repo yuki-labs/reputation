@@ -2034,6 +2034,178 @@ img {
 }
 
 /* Profile tags */
+object-fit: cover;
+}
+
+.user-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-card-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-card-username {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-2);
+}
+
+.user-card-bio {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-card-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: auto;
+    padding-left: var(--space-4);
+    border-left: 1px solid var(--border-subtle);
+}
+
+.user-card-stat {
+    text-align: center;
+}
+
+.user-card-stat-value {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.user-card-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+}
+
+@media (max-width: 768px) {
+    .search-hero {
+        padding: var(--space-8) 0 var(--space-6);
+    }
+
+    .user-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   Tags
+======================================== */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    text-transform: capitalize;
+    border-radius: var(--radius-full);
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.tag-filters {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+}
+
+.tag-filter-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    margin-right: var(--space-2);
+}
+
+.tag-filter-btn {
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all var(--transition-fast);
+}
+
+.tag-filter-btn:hover {
+    opacity: 0.9;
+}
+
+.tag-filter-btn.active {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.tag-filter-btn.active .tag {
+    box-shadow: 0 0 12px currentColor;
+}
+
+/* Tag Selector in Settings */
+.tag-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.tag-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-1);
+    border: 2px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.tag-checkbox:hover {
+    border-color: var(--tag-border);
+    background: var(--tag-bg);
+}
+
+.tag-checkbox.active {
+    border-color: var(--tag-color);
+    background: var(--tag-bg);
+}
+
+.tag-checkbox input {
+    display: none;
+}
+
+.tag-checkbox-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-transform: capitalize;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+
+.tag-checkbox.active .tag-checkbox-label {
+    color: var(--tag-color);
+}
+
+/* Profile tags */
 .profile-info .tags-container {
     margin-top: var(--space-3);
     margin-bottom: var(--space-4);
@@ -2048,4 +2220,79 @@ img {
 .user-card-info .tag {
     font-size: 0.65rem;
     padding: 2px var(--space-2);
+}
+
+/* ========================================
+   Social Auth Buttons
+======================================== */
+.social-auth {
+    margin-bottom: var(--space-6);
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--surface-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.social-btn:hover {
+    background: var(--surface-3);
+    border-color: var(--border-focus);
+    transform: translateY(-1px);
+}
+
+.social-btn:active {
+    transform: translateY(0);
+}
+
+.social-btn svg {
+    flex-shrink: 0;
+}
+
+.social-btn.google:hover {
+    border-color: #4285F4;
+    box-shadow: 0 0 20px rgba(66, 133, 244, 0.2);
+}
+
+.social-btn.microsoft:hover {
+    border-color: #00A4EF;
+    box-shadow: 0 0 20px rgba(0, 164, 239, 0.2);
+}
+
+.social-btn.twitter:hover {
+    border-color: #1DA1F2;
+    box-shadow: 0 0 20px rgba(29, 161, 242, 0.2);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin: var(--space-6) 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+}
+
+.auth-form .form-group:last-of-type {
+    margin-bottom: 0;
 }
