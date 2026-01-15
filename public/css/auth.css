@@ -134,6 +134,59 @@
     box-shadow: 0 0 20px rgba(24, 119, 242, 0.2);
 }
 
+/* Show More Button */
+.show-more-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: 100%;
+    padding: var(--space-2);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.show-more-btn:hover {
+    color: var(--text-primary);
+}
+
+.show-more-btn svg {
+    transition: transform var(--transition-fast);
+}
+
+.show-more-btn.expanded svg {
+    transform: rotate(180deg);
+}
+
+/* Hidden Providers Container */
+.social-auth-more {
+    display: none;
+    overflow: hidden;
+}
+
+.social-auth-more.show {
+    display: block;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .auth-divider {
     display: flex;
     align-items: center;
