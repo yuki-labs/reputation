@@ -1019,37 +1019,121 @@ const App = {
   async editMessage(messageId, btn) {
     const messageEl = btn.closest('.message');
     const textEl = messageEl.querySelector('.message-text');
+    const bubble = messageEl.querySelector('.message-bubble');
+
     if (!textEl) {
       this.showToast('Cannot edit attachment-only messages', 'error');
       return;
     }
 
+    // Check if already in edit mode
+    if (messageEl.classList.contains('editing')) return;
+
     const currentContent = textEl.textContent;
-    const newContent = prompt('Edit message:', currentContent);
+    const actions = messageEl.querySelector('.message-actions');
 
-    if (newContent === null || newContent.trim() === currentContent) return;
+    // Enter edit mode
+    messageEl.classList.add('editing');
+    if (actions) actions.style.display = 'none';
 
-    try {
-      await API.messages.editMessage(messageId, newContent.trim());
-      textEl.textContent = newContent.trim();
+    // Replace text with editable textarea
+    const editContainer = document.createElement('div');
+    editContainer.className = 'message-edit-container';
+    editContainer.innerHTML = `
+      <textarea class="message-edit-input">${this.escapeHtml(currentContent)}</textarea>
+      <div class="message-edit-actions">
+        <button class="message-edit-save" title="Save">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+          </svg>
+        </button>
+        <button class="message-edit-cancel" title="Cancel">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
+        </button>
+      </div>
+    `;
 
-      // Add edited indicator if not present
-      if (!messageEl.querySelector('.message-edited-indicator')) {
-        const bubble = messageEl.querySelector('.message-bubble');
-        bubble.insertAdjacentHTML('beforeend', `
-          <span class="message-edited-indicator" onclick="App.showEditHistory('${messageId}')" title="Click to view edit history">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
-            edited
-          </span>
-        `);
+    textEl.style.display = 'none';
+    bubble.appendChild(editContainer);
+
+    const textarea = editContainer.querySelector('.message-edit-input');
+    const saveBtn = editContainer.querySelector('.message-edit-save');
+    const cancelBtn = editContainer.querySelector('.message-edit-cancel');
+
+    // Focus and select text
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Auto-resize textarea
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+    textarea.addEventListener('input', () => {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    });
+
+    const exitEditMode = () => {
+      messageEl.classList.remove('editing');
+      textEl.style.display = '';
+      editContainer.remove();
+      if (actions) actions.style.display = '';
+    };
+
+    const saveEdit = async () => {
+      const newContent = textarea.value.trim();
+
+      if (!newContent) {
+        this.showToast('Message cannot be empty', 'error');
+        return;
       }
 
-      this.showToast('Message edited', 'success');
-    } catch (error) {
-      this.showToast(error.message || 'Failed to edit message', 'error');
-    }
+      if (newContent === currentContent) {
+        exitEditMode();
+        return;
+      }
+
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+
+      try {
+        await API.messages.editMessage(messageId, newContent);
+        textEl.textContent = newContent;
+
+        // Add edited indicator if not present
+        if (!messageEl.querySelector('.message-edited-indicator')) {
+          bubble.insertAdjacentHTML('beforeend', `
+            <span class="message-edited-indicator" onclick="App.showEditHistory('${messageId}')" title="Click to view edit history">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+              </svg>
+              edited
+            </span>
+          `);
+        }
+
+        exitEditMode();
+        this.showToast('Message edited', 'success');
+      } catch (error) {
+        this.showToast(error.message || 'Failed to edit message', 'error');
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+      }
+    };
+
+    saveBtn.addEventListener('click', saveEdit);
+    cancelBtn.addEventListener('click', exitEditMode);
+
+    // Save on Enter, cancel on Escape
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === 'Escape') {
+        exitEditMode();
+      }
+    });
   },
 
   async deleteMessage(messageId) {
