@@ -81,6 +81,10 @@ const API = {
                 body: JSON.stringify(data),
             });
         },
+
+        async getProviders() {
+            return API.request('/auth/providers');
+        },
     },
 
     images: {

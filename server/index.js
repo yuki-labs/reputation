@@ -3,9 +3,11 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const { initializeDatabase, getStoragePath } = require('./database/init');
 const { getUploadPaths } = require('./middleware/upload');
+const { passport, configurePassport } = require('./config/passport');
 const authRoutes = require('./routes/auth');
 const imageRoutes = require('./routes/images');
 const userRoutes = require('./routes/users');
+const oauthRoutes = require('./routes/oauth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +22,9 @@ if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
 }
 
+// Initialize Passport for OAuth
+app.use(passport.initialize());
+
 // Static files
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -29,6 +34,7 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', oauthRoutes);  // OAuth routes under /api/auth
 app.use('/api/images', imageRoutes);
 app.use('/api/users', userRoutes);
 
@@ -50,10 +56,14 @@ async function start() {
     try {
         await initializeDatabase();
 
+        // Configure OAuth after database is ready
+        configurePassport();
+
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
             console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`Storage path: ${getStoragePath()}`);
+            console.log(`Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? 'Configured' : 'Not configured'}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

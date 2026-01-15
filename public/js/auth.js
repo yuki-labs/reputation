@@ -277,7 +277,7 @@ const Auth = {
     });
   },
 
-  handleSocialAuth(provider) {
+  async handleSocialAuth(provider) {
     const providerNames = {
       google: 'Google',
       apple: 'Apple',
@@ -286,11 +286,43 @@ const Auth = {
       twitter: 'X (Twitter)'
     };
 
-    App.showToast(`${providerNames[provider]} sign-in requires OAuth configuration. Contact the administrator.`, 'info');
+    try {
+      // Check which providers are configured
+      const response = await fetch('/api/auth/providers');
+      const providers = await response.json();
 
-    // When OAuth is configured, redirect to:
-    // window.location.href = `/api/auth/${provider}`;
+      if (providers[provider]) {
+        // Provider is configured - redirect to OAuth
+        App.closeModal();
+        window.location.href = `/api/auth/${provider}`;
+      } else {
+        // Provider not configured
+        App.showToast(`${providerNames[provider]} sign-in is not yet configured.`, 'info');
+      }
+    } catch (error) {
+      // Fallback - try redirect anyway
+      App.closeModal();
+      window.location.href = `/api/auth/${provider}`;
+    }
   }
 };
 
+// Check for OAuth callback status on page load
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+
+  if (urlParams.get('oauth') === 'success') {
+    // Clear the URL parameter
+    window.history.replaceState({}, document.title, window.location.pathname);
+    // Auth.init() will be called by App.init() and will pick up the session
+  }
+
+  if (urlParams.get('error')) {
+    const error = urlParams.get('error');
+    window.history.replaceState({}, document.title, window.location.pathname);
+    App.showToast(`Login failed: ${error.replace(/_/g, ' ')}`, 'error');
+  }
+});
+
 window.Auth = Auth;
+
