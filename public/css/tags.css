@@ -1,0 +1,104 @@
+/* ========================================
+   Tags
+======================================== */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    text-transform: capitalize;
+    border-radius: var(--radius-full);
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.tag-filters {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+}
+
+.tag-filter-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    margin-right: var(--space-2);
+}
+
+.tag-filter-btn {
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all var(--transition-fast);
+}
+
+.tag-filter-btn:hover {
+    opacity: 0.9;
+}
+
+.tag-filter-btn.active {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.tag-filter-btn.active .tag {
+    box-shadow: 0 0 12px currentColor;
+}
+
+/* Tag Selector in Settings */
+.tag-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+
+.tag-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--surface-1);
+    border: 2px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.tag-checkbox:hover {
+    border-color: var(--tag-border);
+    background: var(--tag-bg);
+}
+
+.tag-checkbox.active {
+    border-color: var(--tag-color);
+    background: var(--tag-bg);
+}
+
+.tag-checkbox input {
+    display: none;
+}
+
+.tag-checkbox-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-transform: capitalize;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+
+.tag-checkbox.active .tag-checkbox-label {
+    color: var(--tag-color);
+}

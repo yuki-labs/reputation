@@ -1,0 +1,143 @@
+/* ========================================
+   Auth Modal
+======================================== */
+.auth-modal {
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: var(--space-8);
+}
+
+.auth-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+}
+
+.auth-subtitle {
+    color: var(--text-tertiary);
+}
+
+.auth-tabs {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+    padding: var(--space-1);
+    background: var(--surface-2);
+    border-radius: var(--radius-lg);
+}
+
+.auth-tab {
+    flex: 1;
+    padding: var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.auth-tab:hover {
+    color: var(--text-primary);
+}
+
+.auth-tab.active {
+    background: var(--surface-3);
+    color: var(--text-primary);
+}
+
+.auth-footer {
+    margin-top: var(--space-6);
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+}
+
+.auth-footer a {
+    color: var(--primary-400);
+    font-weight: 500;
+}
+
+.auth-footer a:hover {
+    color: var(--primary-300);
+}
+
+/* ========================================
+   Social Auth Buttons
+======================================== */
+.social-auth {
+    margin-bottom: var(--space-6);
+}
+
+.social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-3);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--surface-2);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.social-btn:hover {
+    background: var(--surface-3);
+    border-color: var(--border-focus);
+    transform: translateY(-1px);
+}
+
+.social-btn:active {
+    transform: translateY(0);
+}
+
+.social-btn svg {
+    flex-shrink: 0;
+}
+
+.social-btn.google:hover {
+    border-color: #4285F4;
+    box-shadow: 0 0 20px rgba(66, 133, 244, 0.2);
+}
+
+.social-btn.microsoft:hover {
+    border-color: #00A4EF;
+    box-shadow: 0 0 20px rgba(0, 164, 239, 0.2);
+}
+
+.social-btn.twitter:hover {
+    border-color: #1DA1F2;
+    box-shadow: 0 0 20px rgba(29, 161, 242, 0.2);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin: var(--space-6) 0;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+}
+
+@media (max-width: 480px) {
+    .auth-modal {
+        max-width: 100%;
+    }
+}
