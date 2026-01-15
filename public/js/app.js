@@ -564,7 +564,8 @@ const App = {
 
   showDeleteAccountModal() {
     const user = Auth.currentUser;
-    const hasPassword = !user.oauthProvider || user.passwordSet;
+    // Only require password if user has one (OAuth-only users don't)
+    const requiresPassword = user.hasPassword === true;
 
     const modalContent = document.getElementById('modal-content');
     modalContent.innerHTML = `
@@ -575,7 +576,7 @@ const App = {
         </div>
 
         <form id="delete-account-form">
-          ${hasPassword ? `
+          ${requiresPassword ? `
             <div class="form-group">
               <label class="form-label" for="delete-password">Your Password</label>
               <input type="password" id="delete-password" name="password" class="form-input" 

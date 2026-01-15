@@ -173,7 +173,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
     try {
         const pool = getPool();
         const result = await pool.query(
-            `SELECT id, username, email, display_name, avatar_url, bio, created_at
+            `SELECT id, username, email, display_name, avatar_url, bio, created_at, oauth_provider, password_hash
        FROM users WHERE id = $1`,
             [req.user.id]
         );
@@ -194,6 +194,8 @@ router.get('/me', authenticateToken, async (req, res, next) => {
             avatarUrl: user.avatar_url,
             bio: user.bio,
             createdAt: user.created_at,
+            oauthProvider: user.oauth_provider || null,
+            hasPassword: !!(user.password_hash && user.password_hash.length > 0),
             tags
         });
     } catch (error) {
