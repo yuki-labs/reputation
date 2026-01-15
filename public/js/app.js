@@ -914,14 +914,52 @@ const App = {
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    container.innerHTML = messages.map(msg => `
-      <div class="message ${msg.sender_id === Auth.currentUser.id ? 'sent' : 'received'}">
-        <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
-        <div class="message-bubble">
-          ${this.renderMessageContent(msg)}
+    container.innerHTML = messages.map(msg => {
+      const isMine = msg.sender_id === Auth.currentUser.id;
+      const isDeleted = msg.is_deleted;
+
+      if (isDeleted) {
+        return `
+          <div class="message ${isMine ? 'sent' : 'received'}">
+            <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
+            <div class="message-bubble message-deleted">
+              <em>This message was deleted</em>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="message ${isMine ? 'sent' : 'received'}" data-message-id="${msg.id}">
+          <div class="message-time">${this.formatMessageTime(msg.created_at)}</div>
+          <div class="message-bubble">
+            ${this.renderMessageContent(msg)}
+            ${msg.edited_at ? `
+              <span class="message-edited-indicator" onclick="App.showEditHistory('${msg.id}')" title="Click to view edit history">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+                edited
+              </span>
+            ` : ''}
+          </div>
+          ${isMine ? `
+            <div class="message-actions">
+              <button class="message-action-btn" onclick="App.editMessage('${msg.id}', this)" title="Edit">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+              </button>
+              <button class="message-action-btn" onclick="App.deleteMessage('${msg.id}')" title="Delete">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
+            </div>
+          ` : ''}
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     // Scroll to bottom
     container.scrollTop = container.scrollHeight;
@@ -947,6 +985,95 @@ const App = {
     }
 
     return html;
+  },
+
+  async showEditHistory(messageId) {
+    try {
+      const data = await API.messages.getMessageHistory(messageId);
+
+      if (data.history.length === 0) {
+        this.showToast('No edit history available', 'info');
+        return;
+      }
+
+      const historyHtml = data.history.map(edit => `
+        <div class="edit-history-item">
+          <div class="edit-history-time">${new Date(edit.edited_at).toLocaleString()}</div>
+          <div class="edit-history-content">${this.escapeHtml(edit.previous_content || '(empty)')}</div>
+        </div>
+      `).join('');
+
+      const modalContent = document.getElementById('modal-content');
+      modalContent.innerHTML = `
+        <h2 class="modal-title">Edit History</h2>
+        <div class="edit-history-list">
+          ${historyHtml}
+        </div>
+      `;
+      this.openModal();
+    } catch (error) {
+      this.showToast('Failed to load edit history', 'error');
+    }
+  },
+
+  async editMessage(messageId, btn) {
+    const messageEl = btn.closest('.message');
+    const textEl = messageEl.querySelector('.message-text');
+    if (!textEl) {
+      this.showToast('Cannot edit attachment-only messages', 'error');
+      return;
+    }
+
+    const currentContent = textEl.textContent;
+    const newContent = prompt('Edit message:', currentContent);
+
+    if (newContent === null || newContent.trim() === currentContent) return;
+
+    try {
+      await API.messages.editMessage(messageId, newContent.trim());
+      textEl.textContent = newContent.trim();
+
+      // Add edited indicator if not present
+      if (!messageEl.querySelector('.message-edited-indicator')) {
+        const bubble = messageEl.querySelector('.message-bubble');
+        bubble.insertAdjacentHTML('beforeend', `
+          <span class="message-edited-indicator" onclick="App.showEditHistory('${messageId}')" title="Click to view edit history">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            edited
+          </span>
+        `);
+      }
+
+      this.showToast('Message edited', 'success');
+    } catch (error) {
+      this.showToast(error.message || 'Failed to edit message', 'error');
+    }
+  },
+
+  async deleteMessage(messageId) {
+    if (!confirm('Delete this message? This cannot be undone.')) return;
+
+    try {
+      await API.messages.deleteMessage(messageId);
+
+      // Update the message in the DOM
+      const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+      if (messageEl) {
+        const bubble = messageEl.querySelector('.message-bubble');
+        bubble.className = 'message-bubble message-deleted';
+        bubble.innerHTML = '<em>This message was deleted</em>';
+
+        const actions = messageEl.querySelector('.message-actions');
+        if (actions) actions.remove();
+      }
+
+      this.showToast('Message deleted', 'success');
+      this.loadConversations(); // Update preview
+    } catch (error) {
+      this.showToast(error.message || 'Failed to delete message', 'error');
+    }
   },
 
   openLightbox(url) {

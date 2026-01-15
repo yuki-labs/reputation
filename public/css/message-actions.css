@@ -1,0 +1,106 @@
+/* ========================================
+   Message Edit/Delete Actions
+======================================== */
+
+/* Message Actions (Edit/Delete) */
+.message-actions {
+    display: flex;
+    gap: var(--space-1);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    align-self: center;
+}
+
+.message:hover .message-actions {
+    opacity: 1;
+}
+
+.message-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--surface-3);
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    transition: all var(--transition-fast);
+}
+
+.message-action-btn:hover {
+    background: var(--surface-4);
+    color: var(--text-primary);
+}
+
+/* Edited Indicator with Eye Icon */
+.message-edited-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    opacity: 0.7;
+    cursor: pointer;
+    margin-left: var(--space-2);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.15);
+    transition: all var(--transition-fast);
+    vertical-align: middle;
+}
+
+.message-edited-indicator:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.message.received .message-edited-indicator {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.message.received .message-edited-indicator:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.message-edited-indicator svg {
+    flex-shrink: 0;
+}
+
+/* Deleted Message */
+.message-deleted {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.message.sent .message-deleted {
+    background: var(--surface-3) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Edit History Modal */
+.edit-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: var(--space-4);
+}
+
+.edit-history-item {
+    padding: var(--space-4);
+    background: var(--surface-2);
+    border-radius: var(--radius-lg);
+    border-left: 3px solid var(--primary-500);
+}
+
+.edit-history-time {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-2);
+}
+
+.edit-history-content {
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}

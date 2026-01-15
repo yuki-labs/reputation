@@ -171,6 +171,27 @@ async function initializeDatabase() {
       // Already nullable, ignore
     }
 
+    // Migration: Add edited_at column to messages
+    try {
+      await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP`);
+      await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`);
+      console.log('Message edit columns ensured');
+    } catch (err) {
+      console.log('Edit columns already exist or migration skipped');
+    }
+
+    // Message edits history table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS message_edits (
+        id TEXT PRIMARY KEY,
+        message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        previous_content TEXT,
+        edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_message_edits_message_id ON message_edits(message_id)`);
+
     console.log('Database initialized successfully');
   } finally {
     client.release();

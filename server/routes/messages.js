@@ -125,7 +125,7 @@ router.get('/conversations/:id/messages', authenticateToken, async (req, res, ne
 
         // Get messages with attachment info
         let query = `
-      SELECT m.id, m.content, m.sender_id, m.is_read, m.created_at,
+      SELECT m.id, m.content, m.sender_id, m.is_read, m.created_at, m.edited_at, m.is_deleted,
              m.attachment_url, m.attachment_type, m.attachment_name,
              u.username as sender_username, u.display_name as sender_display_name, u.avatar_url as sender_avatar_url
       FROM messages m
@@ -285,9 +285,126 @@ router.get('/unread-count', authenticateToken, async (req, res, next) => {
       WHERE (c.user1_id = $1 OR c.user2_id = $1)
         AND m.sender_id != $1
         AND m.is_read = false
+        AND (m.is_deleted IS NULL OR m.is_deleted = false)
     `, [userId]);
 
         res.json({ unreadCount: parseInt(result.rows[0].count) });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Edit a message
+router.patch('/messages/:messageId', authenticateToken, async (req, res, next) => {
+    try {
+        const { messageId } = req.params;
+        const { content } = req.body;
+        const pool = getPool();
+        const userId = req.user.id;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ error: 'Message content is required' });
+        }
+
+        if (content.length > 2000) {
+            return res.status(400).json({ error: 'Message too long (max 2000 characters)' });
+        }
+
+        // Check message exists and belongs to user
+        const msgCheck = await pool.query(
+            'SELECT id, content, sender_id FROM messages WHERE id = $1 AND sender_id = $2 AND (is_deleted IS NULL OR is_deleted = false)',
+            [messageId, userId]
+        );
+
+        if (msgCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Message not found or not yours to edit' });
+        }
+
+        const previousContent = msgCheck.rows[0].content;
+
+        // Save edit history
+        const editId = uuidv4();
+        await pool.query(
+            'INSERT INTO message_edits (id, message_id, previous_content) VALUES ($1, $2, $3)',
+            [editId, messageId, previousContent]
+        );
+
+        // Update message
+        await pool.query(
+            'UPDATE messages SET content = $1, edited_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [content.trim(), messageId]
+        );
+
+        // Get updated message
+        const result = await pool.query(`
+      SELECT m.id, m.content, m.sender_id, m.is_read, m.created_at, m.edited_at,
+             m.attachment_url, m.attachment_type, m.attachment_name,
+             u.username as sender_username, u.display_name as sender_display_name, u.avatar_url as sender_avatar_url
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      WHERE m.id = $1
+    `, [messageId]);
+
+        res.json({ message: result.rows[0] });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Delete a message
+router.delete('/messages/:messageId', authenticateToken, async (req, res, next) => {
+    try {
+        const { messageId } = req.params;
+        const pool = getPool();
+        const userId = req.user.id;
+
+        // Check message exists and belongs to user
+        const msgCheck = await pool.query(
+            'SELECT id, sender_id FROM messages WHERE id = $1 AND sender_id = $2',
+            [messageId, userId]
+        );
+
+        if (msgCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Message not found or not yours to delete' });
+        }
+
+        // Soft delete the message
+        await pool.query(
+            'UPDATE messages SET is_deleted = true, content = NULL WHERE id = $1',
+            [messageId]
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Get edit history for a message
+router.get('/messages/:messageId/history', authenticateToken, async (req, res, next) => {
+    try {
+        const { messageId } = req.params;
+        const pool = getPool();
+        const userId = req.user.id;
+
+        // Check user has access to this message (is in the conversation)
+        const accessCheck = await pool.query(`
+      SELECT m.id FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.id = $1 AND (c.user1_id = $2 OR c.user2_id = $2)
+    `, [messageId, userId]);
+
+        if (accessCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Get edit history
+        const result = await pool.query(
+            'SELECT id, previous_content, edited_at FROM message_edits WHERE message_id = $1 ORDER BY edited_at DESC',
+            [messageId]
+        );
+
+        res.json({ history: result.rows });
     } catch (error) {
         next(error);
     }

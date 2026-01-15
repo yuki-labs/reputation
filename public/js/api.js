@@ -222,6 +222,23 @@ const API = {
         async getUnreadCount() {
             return API.request('/messages/unread-count');
         },
+
+        async editMessage(messageId, content) {
+            return API.request(`/messages/messages/${messageId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ content }),
+            });
+        },
+
+        async deleteMessage(messageId) {
+            return API.request(`/messages/messages/${messageId}`, {
+                method: 'DELETE',
+            });
+        },
+
+        async getMessageHistory(messageId) {
+            return API.request(`/messages/messages/${messageId}/history`);
+        },
     },
 };
 

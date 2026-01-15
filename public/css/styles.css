@@ -5,20 +5,21 @@
  * Each module is self-contained and handles specific components.
  * 
  * Module Structure:
- * - variables.css  : CSS custom properties and theme
- * - base.css       : Reset and base element styles
- * - layout.css     : Header, navigation, main layout
- * - buttons.css    : Button components
- * - forms.css      : Form inputs and validation
- * - cards.css      : Card components
- * - gallery.css    : Gallery grid and upload zone
- * - modals.css     : Modal and lightbox overlays
- * - auth.css       : Authentication and social login
- * - users.css      : User menu, cards, and profile
- * - search.css     : Search interface
- * - tags.css       : Tag components and filters
- * - messages.css   : Direct messaging UI
- * - utilities.css  : Toast, loading states, utilities
+ * - variables.css       : CSS custom properties and theme
+ * - base.css            : Reset and base element styles
+ * - layout.css          : Header, navigation, main layout
+ * - buttons.css         : Button components
+ * - forms.css           : Form inputs and validation
+ * - cards.css           : Card components
+ * - gallery.css         : Gallery grid and upload zone
+ * - modals.css          : Modal and lightbox overlays
+ * - auth.css            : Authentication and social login
+ * - users.css           : User menu, cards, and profile
+ * - search.css          : Search interface
+ * - tags.css            : Tag components and filters
+ * - messages.css        : Direct messaging UI
+ * - message-actions.css : Edit, delete, history for messages
+ * - utilities.css       : Toast, loading states, utilities
  */
 
 @import url('variables.css');
@@ -34,4 +35,5 @@
 @import url('search.css');
 @import url('tags.css');
 @import url('messages.css');
+@import url('message-actions.css');
 @import url('utilities.css');
