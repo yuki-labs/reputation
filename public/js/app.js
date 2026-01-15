@@ -382,9 +382,18 @@ const App = {
           
           <form id="profile-form">
             <div class="form-group">
+              <label class="form-label" for="settings-username">Username</label>
+              <input type="text" id="settings-username" name="username" class="form-input" 
+                value="${user.username || ''}" placeholder="your_username" 
+                pattern="^[a-zA-Z0-9_]{3,30}$" minlength="3" maxlength="30">
+              <p class="form-helper">3-30 characters, letters, numbers, and underscores only. This is your unique @handle.</p>
+            </div>
+
+            <div class="form-group">
               <label class="form-label" for="settings-displayName">Display Name</label>
               <input type="text" id="settings-displayName" name="displayName" class="form-input" 
                 value="${user.displayName || ''}" placeholder="Your display name">
+              <p class="form-helper">This is shown on your profile and can be anything you like.</p>
             </div>
 
             <div class="form-group">
@@ -509,6 +518,7 @@ const App = {
 
       try {
         await API.auth.updateProfile({
+          username: document.getElementById('settings-username').value,
           displayName: document.getElementById('settings-displayName').value,
           bio: document.getElementById('settings-bio').value,
         });

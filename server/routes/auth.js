@@ -206,9 +206,46 @@ router.get('/me', authenticateToken, async (req, res, next) => {
 // Update profile
 router.patch('/me', authenticateToken, async (req, res, next) => {
     try {
-        const { displayName, bio } = req.body;
+        const { username, displayName, bio } = req.body;
         const pool = getPool();
 
+        // If username is being changed, validate it
+        if (username !== undefined && username !== null) {
+            const newUsername = username.toLowerCase().trim();
+
+            // Validate format
+            if (!validateUsername(newUsername)) {
+                return res.status(400).json({
+                    error: 'Username must be 3-30 characters, alphanumeric and underscores only'
+                });
+            }
+
+            // Check if different from current
+            const currentUser = await pool.query(
+                'SELECT username FROM users WHERE id = $1',
+                [req.user.id]
+            );
+
+            if (currentUser.rows[0].username !== newUsername) {
+                // Check uniqueness
+                const existing = await pool.query(
+                    'SELECT id FROM users WHERE username = $1 AND id != $2',
+                    [newUsername, req.user.id]
+                );
+
+                if (existing.rows.length > 0) {
+                    return res.status(409).json({ error: 'Username is already taken' });
+                }
+
+                // Update username
+                await pool.query(
+                    'UPDATE users SET username = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                    [newUsername, req.user.id]
+                );
+            }
+        }
+
+        // Update other fields
         await pool.query(
             `UPDATE users 
        SET display_name = COALESCE($1, display_name),
