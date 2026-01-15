@@ -31,8 +31,7 @@
     justify-content: center;
     font-size: var(--font-size-sm);
     font-weight: 600;
-    color: #ffffff;
-    text-transform: uppercase;
+    color: white;
     overflow: hidden;
 }
 
@@ -133,8 +132,7 @@
     justify-content: center;
     font-size: var(--font-size-xl);
     font-weight: 700;
-    color: #ffffff;
-    text-transform: uppercase;
+    color: white;
     flex-shrink: 0;
     overflow: hidden;
 }
@@ -232,8 +230,7 @@
     justify-content: center;
     font-size: var(--font-size-4xl);
     font-weight: 700;
-    color: #ffffff;
-    text-transform: uppercase;
+    color: white;
     flex-shrink: 0;
     overflow: hidden;
 }
