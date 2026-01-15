@@ -130,6 +130,31 @@ function configurePassport() {
         console.log('Discord OAuth not configured - missing credentials');
     }
 
+    // Configure Facebook OAuth
+    if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+        const FacebookStrategy = require('passport-facebook').Strategy;
+        const facebookCallbackURL = baseUrl ? `${baseUrl}/api/auth/facebook/callback` : '/api/auth/facebook/callback';
+        console.log(`Facebook OAuth callback URL: ${facebookCallbackURL}`);
+
+        passport.use(new FacebookStrategy({
+            clientID: process.env.FACEBOOK_APP_ID,
+            clientSecret: process.env.FACEBOOK_APP_SECRET,
+            callbackURL: facebookCallbackURL,
+            profileFields: ['id', 'emails', 'name', 'displayName', 'picture.type(large)'],
+            enableProof: true
+        },
+            async (accessToken, refreshToken, profile, done) => {
+                const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
+                const displayName = profile.displayName || `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim();
+                const avatarUrl = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
+                await handleOAuthLogin('facebook', profile.id, email, displayName, avatarUrl, done);
+            }));
+
+        console.log('Facebook OAuth configured successfully');
+    } else {
+        console.log('Facebook OAuth not configured - missing credentials');
+    }
+
     // Serialize/deserialize for session support
     passport.serializeUser((user, done) => {
         done(null, user.id);

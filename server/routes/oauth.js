@@ -100,12 +100,48 @@ router.get('/discord/callback',
     }
 );
 
+// Facebook OAuth - Initiate
+router.get('/facebook', (req, res, next) => {
+    if (!process.env.FACEBOOK_APP_ID) {
+        return res.status(503).json({ error: 'Facebook OAuth is not configured' });
+    }
+    passport.authenticate('facebook', {
+        scope: ['email', 'public_profile'],
+        session: false
+    })(req, res, next);
+});
+
+// Facebook OAuth - Callback
+router.get('/facebook/callback',
+    passport.authenticate('facebook', {
+        session: false,
+        failureRedirect: '/?error=oauth_failed'
+    }),
+    async (req, res) => {
+        try {
+            const token = await createSessionToken(req.user, req);
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+                path: '/'
+            });
+            res.redirect('/?oauth=success');
+        } catch (error) {
+            console.error('Facebook OAuth callback error:', error);
+            res.redirect('/?error=oauth_error');
+        }
+    }
+);
+
 // OAuth status check
 router.get('/providers', (req, res) => {
     res.json({
         google: !!process.env.GOOGLE_CLIENT_ID,
         apple: !!process.env.APPLE_CLIENT_ID,
         discord: !!process.env.DISCORD_CLIENT_ID,
+        facebook: !!process.env.FACEBOOK_APP_ID,
         microsoft: !!process.env.MICROSOFT_CLIENT_ID,
         twitter: !!process.env.TWITTER_CLIENT_ID
     });
