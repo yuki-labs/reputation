@@ -153,6 +153,24 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at)`);
 
+    // Migrations: Add attachment columns to messages table if they don't exist
+    try {
+      await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_url TEXT`);
+      await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_type TEXT`);
+      await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_name TEXT`);
+      console.log('Message attachment columns ensured');
+    } catch (err) {
+      // Columns might already exist, ignore errors
+      console.log('Attachment columns already exist or migration skipped');
+    }
+
+    // Migration: Make content column nullable (for attachment-only messages)
+    try {
+      await client.query(`ALTER TABLE messages ALTER COLUMN content DROP NOT NULL`);
+    } catch (err) {
+      // Already nullable, ignore
+    }
+
     console.log('Database initialized successfully');
   } finally {
     client.release();
