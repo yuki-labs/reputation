@@ -68,7 +68,10 @@
 /* ========================================
    Social Auth Buttons
 ======================================== */
+/* Social Auth Container - use flexbox for ordering */
 .social-auth {
+    display: flex;
+    flex-direction: column;
     margin-bottom: var(--space-6);
 }
 
@@ -150,6 +153,8 @@
     border: none;
     cursor: pointer;
     transition: all var(--transition-fast);
+    order: 10;
+    /* Default order - appears after primary buttons */
 }
 
 .show-more-btn:hover {
@@ -164,14 +169,22 @@
     transform: rotate(180deg);
 }
 
+/* When expanded, move button to very bottom */
+.show-more-btn.expanded {
+    order: 20;
+}
+
 /* Hidden Providers Container */
 .social-auth-more {
     display: none;
     overflow: hidden;
+    order: 15;
+    /* Between button default (10) and expanded (20) */
 }
 
 .social-auth-more.show {
-    display: block;
+    display: flex;
+    flex-direction: column;
     animation: slideDown 0.2s ease-out;
 }
 
@@ -187,6 +200,7 @@
     }
 }
 
+/* Auth divider */
 .auth-divider {
     display: flex;
     align-items: center;
@@ -194,6 +208,8 @@
     margin: var(--space-6) 0;
     color: var(--text-muted);
     font-size: var(--font-size-sm);
+    order: 30;
+    /* Always at the very end */
 }
 
 .auth-divider::before,
