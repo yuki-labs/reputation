@@ -451,6 +451,19 @@ const App = {
             <button type="submit" class="btn btn-primary" id="password-submit">Change Password</button>
           </form>
         </div>
+
+        <div class="card" style="padding: var(--space-6); border-color: var(--error);">
+          <h2 style="font-size: var(--font-size-xl); font-weight: 600; margin-bottom: var(--space-4); color: var(--error);">
+            ⚠️ Danger Zone
+          </h2>
+          <p style="color: var(--text-tertiary); margin-bottom: var(--space-6); font-size: var(--font-size-sm);">
+            Once you delete your account, there is no going back. All your data, images, and settings will be permanently removed.
+          </p>
+          
+          <button type="button" class="btn btn-danger" id="delete-account-btn">
+            Delete My Account
+          </button>
+        </div>
       </div>
     `;
   },
@@ -540,6 +553,90 @@ const App = {
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Change Password';
+      }
+    });
+
+    // Delete account button
+    document.getElementById('delete-account-btn').addEventListener('click', () => {
+      this.showDeleteAccountModal();
+    });
+  },
+
+  showDeleteAccountModal() {
+    const user = Auth.currentUser;
+    const hasPassword = !user.oauthProvider || user.passwordSet;
+
+    const modalContent = document.getElementById('modal-content');
+    modalContent.innerHTML = `
+      <div class="auth-modal">
+        <div class="auth-header">
+          <h2 class="auth-title" style="color: var(--error);">⚠️ Delete Account</h2>
+          <p class="auth-subtitle">This action cannot be undone. All your data will be permanently deleted.</p>
+        </div>
+
+        <form id="delete-account-form">
+          ${hasPassword ? `
+            <div class="form-group">
+              <label class="form-label" for="delete-password">Your Password</label>
+              <input type="password" id="delete-password" name="password" class="form-input" 
+                placeholder="Enter your password to confirm" required>
+            </div>
+          ` : ''}
+
+          <div class="form-group">
+            <label class="form-label" for="delete-confirmation">Type DELETE to confirm</label>
+            <input type="text" id="delete-confirmation" name="confirmation" class="form-input" 
+              placeholder="Type DELETE" required pattern="DELETE">
+            <p class="form-helper">This is case-sensitive</p>
+          </div>
+
+          <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="button" class="btn btn-secondary" id="cancel-delete" style="flex: 1;">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-danger" id="confirm-delete" style="flex: 1;">
+              Delete Permanently
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    this.openModal();
+
+    // Cancel button
+    document.getElementById('cancel-delete').addEventListener('click', () => {
+      this.closeModal();
+    });
+
+    // Form submission
+    document.getElementById('delete-account-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const confirmation = document.getElementById('delete-confirmation').value;
+      if (confirmation !== 'DELETE') {
+        this.showToast('Please type DELETE exactly to confirm', 'error');
+        return;
+      }
+
+      const passwordInput = document.getElementById('delete-password');
+      const password = passwordInput ? passwordInput.value : null;
+
+      const submitBtn = document.getElementById('confirm-delete');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Deleting...';
+
+      try {
+        await API.auth.deleteAccount(password, confirmation);
+        this.closeModal();
+        Auth.currentUser = null;
+        Auth.updateUI();
+        this.navigateTo('/');
+        this.showToast('Your account has been deleted', 'success');
+      } catch (error) {
+        this.showToast(error.message, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Delete Permanently';
       }
     });
   },

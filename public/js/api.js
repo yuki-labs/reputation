@@ -85,6 +85,13 @@ const API = {
         async getProviders() {
             return API.request('/auth/providers');
         },
+
+        async deleteAccount(password, confirmation) {
+            return API.request('/auth/me', {
+                method: 'DELETE',
+                body: JSON.stringify({ password, confirmation }),
+            });
+        },
     },
 
     images: {

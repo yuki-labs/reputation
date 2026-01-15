@@ -304,4 +304,53 @@ router.post('/change-password', authenticateToken, async (req, res, next) => {
     }
 });
 
+// Delete account
+router.delete('/me', authenticateToken, async (req, res, next) => {
+    try {
+        const { password, confirmation } = req.body;
+        const pool = getPool();
+
+        // Verify user wants to delete (confirmation must be "DELETE")
+        if (confirmation !== 'DELETE') {
+            return res.status(400).json({
+                error: 'Please type DELETE to confirm account deletion'
+            });
+        }
+
+        // Get user to check if they're OAuth-only or have password
+        const userResult = await pool.query(
+            'SELECT password_hash, oauth_provider FROM users WHERE id = $1',
+            [req.user.id]
+        );
+        const user = userResult.rows[0];
+
+        // If user has password, require it for deletion
+        if (user.password_hash && user.password_hash.length > 0) {
+            if (!password) {
+                return res.status(400).json({ error: 'Password is required to delete account' });
+            }
+
+            const validPassword = await bcrypt.compare(password, user.password_hash);
+            if (!validPassword) {
+                return res.status(401).json({ error: 'Incorrect password' });
+            }
+        }
+
+        // Delete user (cascades to images, sessions, tags due to ON DELETE CASCADE)
+        await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
+
+        // Clear auth cookie
+        res.clearCookie('auth_token', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/'
+        });
+
+        res.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
