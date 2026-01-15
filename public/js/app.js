@@ -1292,6 +1292,10 @@ const App = {
     this.messageRefreshInterval = setInterval(async () => {
       if (!this.currentConversationId) return;
 
+      // Skip refresh if a message is being edited
+      const editingMessage = document.querySelector('.message.editing');
+      if (editingMessage) return;
+
       try {
         const data = await API.messages.getMessages(this.currentConversationId);
         this.renderMessages(data.messages);
