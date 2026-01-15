@@ -340,7 +340,7 @@ router.delete('/me', authenticateToken, async (req, res, next) => {
         await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
 
         // Clear auth cookie
-        res.clearCookie('auth_token', {
+        res.clearCookie('token', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',

@@ -53,7 +53,7 @@ router.get('/google/callback',
             const token = await createSessionToken(req.user, req);
 
             // Set cookie and redirect to home
-            res.cookie('auth_token', token, {
+            res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
