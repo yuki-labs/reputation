@@ -131,12 +131,23 @@ const App = {
     irl_gfe: 'IRL GFE'
   },
 
-  renderTag(tag, clickable = false, isSubTag = false) {
+  renderTag(tag, clickable = false) {
     const color = this.getTagColor(tag);
     const clickAttr = clickable ? `data-tag-filter="${tag}"` : '';
     const label = this.tagLabels[tag] || tag;
-    const subClass = isSubTag ? 'tag-sub' : '';
-    return `<span class="tag ${subClass}" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">${label}</span>`;
+    return `<span class="tag" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">${label}</span>`;
+  },
+
+  renderTagWithSubtags(mainTag, subTags, clickable = false) {
+    const color = this.getTagColor(mainTag);
+    const clickAttr = clickable ? `data-tag-filter="${mainTag}"` : '';
+    const mainLabel = this.tagLabels[mainTag] || mainTag;
+    const subLabels = subTags.map(t => this.tagLabels[t] || t).join(', ');
+
+    return `<span class="tag-with-subtags" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">
+      <span class="tag-main-label">${mainLabel}</span>
+      <span class="tag-subtags-inline">${subLabels}</span>
+    </span>`;
   },
 
   renderTags(tags, clickable = false) {
@@ -151,43 +162,18 @@ const App = {
       return `<div class="tags-container">${userMainTags.map(t => this.renderTag(t, clickable)).join('')}</div>`;
     }
 
-    // Check if user has buying or selling (parent tags for sub-tags)
-    const hasBuyingOrSelling = userMainTags.includes('buying') || userMainTags.includes('selling');
-
     let html = '<div class="tags-container">';
+    let subTagsRendered = false;
 
-    // Render main tags, nesting sub-tags under buying/selling
+    // Render main tags, with sub-tags inline in the first buying/selling tag
     for (const mainTag of userMainTags) {
-      if ((mainTag === 'buying' || mainTag === 'selling') && hasBuyingOrSelling) {
-        // Render this main tag with nested sub-tags
-        html += `<div class="tag-group">`;
+      if ((mainTag === 'buying' || mainTag === 'selling') && !subTagsRendered && userSubTags.length > 0) {
+        // Render this main tag with inline sub-tags
+        html += this.renderTagWithSubtags(mainTag, userSubTags, clickable);
+        subTagsRendered = true;
+      } else {
+        // Render normal tag
         html += this.renderTag(mainTag, clickable);
-        if (userSubTags.length > 0) {
-          html += `<div class="tag-subtags">`;
-          html += userSubTags.map(t => this.renderTag(t, clickable, true)).join('');
-          html += `</div>`;
-        }
-        html += `</div>`;
-        // Only show sub-tags once (under the first buying/selling tag)
-        break;
-      } else if (mainTag !== 'buying' && mainTag !== 'selling') {
-        html += this.renderTag(mainTag, clickable);
-      }
-    }
-
-    // Render remaining buying/selling tags without sub-tags
-    const remainingBuySell = userMainTags.filter(t =>
-      (t === 'buying' || t === 'selling') &&
-      !html.includes(`">${this.tagLabels[t]}</span>`)
-    );
-    for (const tag of remainingBuySell) {
-      html += this.renderTag(tag, clickable);
-    }
-
-    // Render other main tags
-    for (const tag of userMainTags) {
-      if (tag !== 'buying' && tag !== 'selling') {
-        html += this.renderTag(tag, clickable);
       }
     }
 
