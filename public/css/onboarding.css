@@ -18,20 +18,48 @@
     font-size: var(--font-size-lg);
 }
 
-.onboarding-tags {
+/* Category Layout */
+.onboarding-categories {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    margin-bottom: var(--space-6);
+}
+
+.onboarding-category {
+    background: var(--surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+}
+
+.onboarding-category-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.onboarding-category-desc {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    margin-bottom: var(--space-4);
+}
+
+.onboarding-category-tags {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: var(--space-3);
-    margin-bottom: var(--space-6);
 }
 
+/* Tag Buttons */
 .onboarding-tag {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-5);
-    background: var(--surface-2);
+    background: var(--surface-3);
     border: 2px solid var(--border-default);
     border-radius: var(--radius-full);
     font-size: var(--font-size-base);
@@ -43,7 +71,8 @@
 
 .onboarding-tag:hover {
     border-color: var(--tag-color, var(--primary-500));
-    background: var(--surface-3);
+    background: var(--surface-4);
+    transform: translateY(-2px);
 }
 
 .onboarding-tag.selected {
@@ -51,6 +80,7 @@
     border-color: var(--tag-color, var(--primary-500));
     color: white;
     transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .onboarding-tag-check {
@@ -94,4 +124,20 @@
 
 .onboarding-tag.selected {
     animation: tagPulse 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .onboarding-categories {
+        gap: var(--space-4);
+    }
+
+    .onboarding-category {
+        padding: var(--space-4);
+    }
+
+    .onboarding-tag {
+        padding: var(--space-2) var(--space-4);
+        font-size: var(--font-size-sm);
+    }
 }

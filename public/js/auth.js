@@ -141,7 +141,6 @@ const Auth = {
 
   showOnboardingModal() {
     const modalContent = document.getElementById('modal-content');
-    const validTags = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
 
     const tagColors = {
       buying: '#10b981',
@@ -151,17 +150,43 @@ const Auth = {
       looking: '#ec4899'
     };
 
+    const categories = [
+      {
+        name: 'Content',
+        description: 'Buy or sell goods and services',
+        tags: ['buying', 'selling']
+      },
+      {
+        name: 'Loans',
+        description: 'Lend or borrow items',
+        tags: ['lending', 'borrowing']
+      },
+      {
+        name: 'Unspecified',
+        description: 'Just browsing',
+        tags: ['looking']
+      }
+    ];
+
     modalContent.innerHTML = `
       <div class="onboarding-modal">
         <h2 class="modal-title">Welcome to VerifiedUsers! 🎉</h2>
         <p class="onboarding-subtitle">Let others know what you're here for. Select at least one tag:</p>
         
-        <div class="onboarding-tags" id="onboarding-tags">
-          ${validTags.map(tag => `
-            <button type="button" class="onboarding-tag" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
-              <span class="onboarding-tag-check">✓</span>
-              <span class="onboarding-tag-name">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
-            </button>
+        <div class="onboarding-categories" id="onboarding-tags">
+          ${categories.map(cat => `
+            <div class="onboarding-category">
+              <h3 class="onboarding-category-name">${cat.name}</h3>
+              <p class="onboarding-category-desc">${cat.description}</p>
+              <div class="onboarding-category-tags">
+                ${cat.tags.map(tag => `
+                  <button type="button" class="onboarding-tag" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
+                    <span class="onboarding-tag-check">✓</span>
+                    <span class="onboarding-tag-name">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
           `).join('')}
         </div>
         
