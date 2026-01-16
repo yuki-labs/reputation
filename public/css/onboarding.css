@@ -107,6 +107,23 @@
     cursor: not-allowed;
 }
 
+/* Step 2 Actions */
+.onboarding-step2-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.onboarding-skip {
+    color: var(--text-tertiary);
+}
+
+.onboarding-skip:hover {
+    color: var(--text-primary);
+}
+
 /* Animation for selected tags */
 @keyframes tagPulse {
     0% {
@@ -139,5 +156,9 @@
     .onboarding-tag {
         padding: var(--space-2) var(--space-4);
         font-size: var(--font-size-sm);
+    }
+
+    .onboarding-step2-actions {
+        flex-direction: column-reverse;
     }
 }

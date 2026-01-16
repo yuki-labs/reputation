@@ -141,96 +141,190 @@ const Auth = {
 
   showOnboardingModal() {
     const modalContent = document.getElementById('modal-content');
+    const modal = document.getElementById('modal');
+    const closeBtn = modal.querySelector('.modal-close');
+
+    // Hide close button during onboarding
+    if (closeBtn) closeBtn.style.display = 'none';
 
     const tagColors = {
       buying: '#10b981',
       selling: '#f59e0b',
       lending: '#3b82f6',
       borrowing: '#8b5cf6',
-      looking: '#ec4899'
+      looking: '#ec4899',
+      nudes: '#ef4444',
+      sexting: '#f97316',
+      irl_gfe: '#a855f7'
     };
 
-    const categories = [
-      {
-        name: 'Seeking',
-        description: 'Buy or sell intimate content or experiences',
-        tags: ['buying', 'selling']
-      },
-      {
-        name: 'Loans',
-        description: 'Lend or borrow money',
-        tags: ['lending', 'borrowing']
-      },
-      {
-        name: 'Unspecified',
-        description: 'Just browsing',
-        tags: ['looking']
-      }
-    ];
+    const tagLabels = {
+      buying: 'Buying',
+      selling: 'Selling',
+      lending: 'Lending',
+      borrowing: 'Borrowing',
+      looking: 'Looking',
+      nudes: 'Nudes',
+      sexting: 'Sexting',
+      irl_gfe: 'IRL Girlfriend Experience'
+    };
 
-    modalContent.innerHTML = `
-      <div class="onboarding-modal">
-        <h2 class="modal-title">Welcome to VerifiedUsers! 🎉</h2>
-        <p class="onboarding-subtitle">Let others know what you're here for. Select at least one tag:</p>
-        
-        <div class="onboarding-categories" id="onboarding-tags">
-          ${categories.map(cat => `
+    const selectedTags = new Set();
+
+    const renderStep1 = () => {
+      const categories = [
+        {
+          name: 'Seeking',
+          description: 'Buy or sell intimate content or experiences',
+          tags: ['buying', 'selling']
+        },
+        {
+          name: 'Loans',
+          description: 'Lend or borrow money',
+          tags: ['lending', 'borrowing']
+        },
+        {
+          name: 'Unspecified',
+          description: 'Just browsing',
+          tags: ['looking']
+        }
+      ];
+
+      modalContent.innerHTML = `
+        <div class="onboarding-modal">
+          <h2 class="modal-title">Welcome to VerifiedUsers! 🎉</h2>
+          <p class="onboarding-subtitle">Let others know what you're here for. Select at least one tag:</p>
+          
+          <div class="onboarding-categories" id="onboarding-tags">
+            ${categories.map(cat => `
+              <div class="onboarding-category">
+                <h3 class="onboarding-category-name">${cat.name}</h3>
+                <p class="onboarding-category-desc">${cat.description}</p>
+                <div class="onboarding-category-tags">
+                  ${cat.tags.map(tag => `
+                    <button type="button" class="onboarding-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
+                      <span class="onboarding-tag-check">✓</span>
+                      <span class="onboarding-tag-name">${tagLabels[tag]}</span>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          
+          <p class="onboarding-hint">You can change these later in your settings.</p>
+          
+          <button class="btn btn-primary btn-lg onboarding-continue" id="onboarding-continue" ${selectedTags.size === 0 ? 'disabled' : ''}>
+            Continue
+          </button>
+        </div>
+      `;
+
+      App.openModal();
+      setupStep1Listeners();
+    };
+
+    const renderStep2 = () => {
+      const contentTags = ['nudes', 'sexting', 'irl_gfe'];
+
+      modalContent.innerHTML = `
+        <div class="onboarding-modal">
+          <h2 class="modal-title">What are you interested in?</h2>
+          <p class="onboarding-subtitle">Optionally specify the type of content (select any that apply):</p>
+          
+          <div class="onboarding-categories" id="onboarding-tags">
             <div class="onboarding-category">
-              <h3 class="onboarding-category-name">${cat.name}</h3>
-              <p class="onboarding-category-desc">${cat.description}</p>
+              <h3 class="onboarding-category-name">Content Types</h3>
+              <p class="onboarding-category-desc">Help others find you for the right things</p>
               <div class="onboarding-category-tags">
-                ${cat.tags.map(tag => `
-                  <button type="button" class="onboarding-tag" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
+                ${contentTags.map(tag => `
+                  <button type="button" class="onboarding-tag ${selectedTags.has(tag) ? 'selected' : ''}" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
                     <span class="onboarding-tag-check">✓</span>
-                    <span class="onboarding-tag-name">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
+                    <span class="onboarding-tag-name">${tagLabels[tag]}</span>
                   </button>
                 `).join('')}
               </div>
             </div>
-          `).join('')}
+          </div>
+          
+          <div class="onboarding-step2-actions">
+            <button class="btn btn-ghost onboarding-skip" id="onboarding-skip">
+              Skip for now
+            </button>
+            <button class="btn btn-primary btn-lg onboarding-continue" id="onboarding-continue">
+              Finish Setup
+            </button>
+          </div>
         </div>
-        
-        <p class="onboarding-hint">You can change these later in your settings.</p>
-        
-        <button class="btn btn-primary btn-lg onboarding-continue" id="onboarding-continue" disabled>
-          Continue
-        </button>
-      </div>
-    `;
+      `;
 
-    App.openModal();
+      setupStep2Listeners();
+    };
 
-    // Prevent closing the modal without completing onboarding
-    const modal = document.getElementById('modal');
-    const closeBtn = modal.querySelector('.modal-close');
-    if (closeBtn) closeBtn.style.display = 'none';
+    const setupStep1Listeners = () => {
+      const tagsContainer = document.getElementById('onboarding-tags');
+      const continueBtn = document.getElementById('onboarding-continue');
 
-    // Tag selection logic
-    const selectedTags = new Set();
-    const tagsContainer = document.getElementById('onboarding-tags');
-    const continueBtn = document.getElementById('onboarding-continue');
+      tagsContainer.addEventListener('click', (e) => {
+        const tagBtn = e.target.closest('.onboarding-tag');
+        if (!tagBtn) return;
 
-    tagsContainer.addEventListener('click', (e) => {
-      const tagBtn = e.target.closest('.onboarding-tag');
-      if (!tagBtn) return;
+        const tag = tagBtn.dataset.tag;
+        if (selectedTags.has(tag)) {
+          selectedTags.delete(tag);
+          tagBtn.classList.remove('selected');
+        } else {
+          selectedTags.add(tag);
+          tagBtn.classList.add('selected');
+        }
 
-      const tag = tagBtn.dataset.tag;
-      if (selectedTags.has(tag)) {
-        selectedTags.delete(tag);
-        tagBtn.classList.remove('selected');
-      } else {
-        selectedTags.add(tag);
-        tagBtn.classList.add('selected');
+        continueBtn.disabled = selectedTags.size === 0;
+      });
+
+      continueBtn.addEventListener('click', () => {
+        if (selectedTags.size === 0) return;
+
+        // Check if user selected buying or selling - show step 2
+        if (selectedTags.has('buying') || selectedTags.has('selling')) {
+          renderStep2();
+        } else {
+          finishOnboarding();
+        }
+      });
+    };
+
+    const setupStep2Listeners = () => {
+      const tagsContainer = document.getElementById('onboarding-tags');
+      const continueBtn = document.getElementById('onboarding-continue');
+      const skipBtn = document.getElementById('onboarding-skip');
+
+      tagsContainer.addEventListener('click', (e) => {
+        const tagBtn = e.target.closest('.onboarding-tag');
+        if (!tagBtn) return;
+
+        const tag = tagBtn.dataset.tag;
+        if (selectedTags.has(tag)) {
+          selectedTags.delete(tag);
+          tagBtn.classList.remove('selected');
+        } else {
+          selectedTags.add(tag);
+          tagBtn.classList.add('selected');
+        }
+      });
+
+      continueBtn.addEventListener('click', () => finishOnboarding());
+      skipBtn.addEventListener('click', () => finishOnboarding());
+    };
+
+    const finishOnboarding = async () => {
+      const continueBtn = document.getElementById('onboarding-continue');
+      const skipBtn = document.getElementById('onboarding-skip');
+
+      if (continueBtn) {
+        continueBtn.disabled = true;
+        continueBtn.textContent = 'Setting up...';
       }
-
-      continueBtn.disabled = selectedTags.size === 0;
-    });
-
-    continueBtn.addEventListener('click', async () => {
-      if (selectedTags.size === 0) return;
-
-      continueBtn.disabled = true;
-      continueBtn.textContent = 'Setting up...';
+      if (skipBtn) skipBtn.disabled = true;
 
       try {
         const result = await API.auth.completeOnboarding([...selectedTags]);
@@ -241,15 +335,19 @@ const Auth = {
         if (closeBtn) closeBtn.style.display = '';
 
         App.showToast('Welcome aboard! Your profile is ready.', 'success');
-
-        // Refresh the page to show updated content
         App.handleRoute();
       } catch (error) {
         App.showToast(error.message || 'Failed to complete setup', 'error');
-        continueBtn.disabled = false;
-        continueBtn.textContent = 'Continue';
+        if (continueBtn) {
+          continueBtn.disabled = false;
+          continueBtn.textContent = 'Finish Setup';
+        }
+        if (skipBtn) skipBtn.disabled = false;
       }
-    });
+    };
+
+    // Start with step 1
+    renderStep1();
   },
 
   showAuthModal(mode = 'login') {

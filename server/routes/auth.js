@@ -214,7 +214,7 @@ router.post('/complete-onboarding', authenticateToken, async (req, res, next) =>
         const userId = req.user.id;
 
         // Validate tags
-        const validTags = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
+        const validTags = ['buying', 'selling', 'lending', 'borrowing', 'looking', 'nudes', 'sexting', 'irl_gfe'];
         if (!tags || !Array.isArray(tags) || tags.length === 0) {
             return res.status(400).json({ error: 'Please select at least one tag' });
         }
