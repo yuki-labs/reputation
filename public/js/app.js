@@ -106,20 +106,93 @@ const App = {
       selling: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
       lending: { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' },
       borrowing: { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7', border: 'rgba(168, 85, 247, 0.3)' },
-      looking: { bg: 'rgba(251, 146, 60, 0.15)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' }
+      looking: { bg: 'rgba(251, 146, 60, 0.15)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' },
+      // Sub-tags
+      nudes: { bg: 'rgba(239, 68, 68, 0.1)', text: '#f87171', border: 'rgba(239, 68, 68, 0.2)' },
+      sexting: { bg: 'rgba(249, 115, 22, 0.1)', text: '#fb923c', border: 'rgba(249, 115, 22, 0.2)' },
+      irl_gfe: { bg: 'rgba(168, 85, 247, 0.1)', text: '#a78bfa', border: 'rgba(168, 85, 247, 0.2)' }
     };
     return colors[tag] || { bg: 'var(--surface-2)', text: 'var(--text-secondary)', border: 'var(--border-default)' };
   },
 
-  renderTag(tag, clickable = false) {
+  // Main tags that can have sub-tags
+  mainTags: ['buying', 'selling', 'lending', 'borrowing', 'looking'],
+  subTags: ['nudes', 'sexting', 'irl_gfe'],
+
+  // Tag labels for display
+  tagLabels: {
+    buying: 'Buying',
+    selling: 'Selling',
+    lending: 'Lending',
+    borrowing: 'Borrowing',
+    looking: 'Looking',
+    nudes: 'Nudes',
+    sexting: 'Sexting',
+    irl_gfe: 'IRL GFE'
+  },
+
+  renderTag(tag, clickable = false, isSubTag = false) {
     const color = this.getTagColor(tag);
     const clickAttr = clickable ? `data-tag-filter="${tag}"` : '';
-    return `<span class="tag" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">${tag}</span>`;
+    const label = this.tagLabels[tag] || tag;
+    const subClass = isSubTag ? 'tag-sub' : '';
+    return `<span class="tag ${subClass}" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">${label}</span>`;
   },
 
   renderTags(tags, clickable = false) {
     if (!tags || tags.length === 0) return '';
-    return `<div class="tags-container">${tags.map(t => this.renderTag(t, clickable)).join('')}</div>`;
+
+    // Separate main tags and sub-tags
+    const userMainTags = tags.filter(t => this.mainTags.includes(t));
+    const userSubTags = tags.filter(t => this.subTags.includes(t));
+
+    // If no sub-tags, just render main tags normally
+    if (userSubTags.length === 0) {
+      return `<div class="tags-container">${userMainTags.map(t => this.renderTag(t, clickable)).join('')}</div>`;
+    }
+
+    // Check if user has buying or selling (parent tags for sub-tags)
+    const hasBuyingOrSelling = userMainTags.includes('buying') || userMainTags.includes('selling');
+
+    let html = '<div class="tags-container">';
+
+    // Render main tags, nesting sub-tags under buying/selling
+    for (const mainTag of userMainTags) {
+      if ((mainTag === 'buying' || mainTag === 'selling') && hasBuyingOrSelling) {
+        // Render this main tag with nested sub-tags
+        html += `<div class="tag-group">`;
+        html += this.renderTag(mainTag, clickable);
+        if (userSubTags.length > 0) {
+          html += `<div class="tag-subtags">`;
+          html += userSubTags.map(t => this.renderTag(t, clickable, true)).join('');
+          html += `</div>`;
+        }
+        html += `</div>`;
+        // Only show sub-tags once (under the first buying/selling tag)
+        break;
+      } else if (mainTag !== 'buying' && mainTag !== 'selling') {
+        html += this.renderTag(mainTag, clickable);
+      }
+    }
+
+    // Render remaining buying/selling tags without sub-tags
+    const remainingBuySell = userMainTags.filter(t =>
+      (t === 'buying' || t === 'selling') &&
+      !html.includes(`">${this.tagLabels[t]}</span>`)
+    );
+    for (const tag of remainingBuySell) {
+      html += this.renderTag(tag, clickable);
+    }
+
+    // Render other main tags
+    for (const tag of userMainTags) {
+      if (tag !== 'buying' && tag !== 'selling') {
+        html += this.renderTag(tag, clickable);
+      }
+    }
+
+    html += '</div>';
+    return html;
   },
 
   // Search page
