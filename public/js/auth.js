@@ -152,13 +152,13 @@ const Auth = {
 
     const categories = [
       {
-        name: 'Content',
-        description: 'Buy or sell goods and services',
+        name: 'Seeking',
+        description: 'For users wishing to buy or sell intimate content or experiences',
         tags: ['buying', 'selling']
       },
       {
         name: 'Loans',
-        description: 'Lend or borrow items',
+        description: 'Lend or borrow money',
         tags: ['lending', 'borrowing']
       },
       {
