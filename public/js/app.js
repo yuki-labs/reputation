@@ -436,6 +436,30 @@ const App = {
     }).join('')}
           </div>
 
+          <div class="sub-tags-section" id="sub-tags-section" style="display: ${user.tags && (user.tags.includes('buying') || user.tags.includes('selling')) ? 'block' : 'none'}; margin-top: var(--space-6);">
+            <h3 style="font-size: var(--font-size-lg); font-weight: 500; margin-bottom: var(--space-3);">
+              Content Types
+            </h3>
+            <p style="color: var(--text-tertiary); margin-bottom: var(--space-4); font-size: var(--font-size-sm);">
+              Specify what types of content you're interested in (optional).
+            </p>
+            <div class="tag-selector" id="sub-tag-selector">
+              ${[
+        { tag: 'nudes', label: 'Nudes', color: { bg: 'rgba(239, 68, 68, 0.1)', text: '#f87171', border: 'rgba(239, 68, 68, 0.3)' } },
+        { tag: 'sexting', label: 'Sexting', color: { bg: 'rgba(249, 115, 22, 0.1)', text: '#fb923c', border: 'rgba(249, 115, 22, 0.3)' } },
+        { tag: 'irl_gfe', label: 'IRL Girlfriend Experience', color: { bg: 'rgba(168, 85, 247, 0.1)', text: '#a78bfa', border: 'rgba(168, 85, 247, 0.3)' } }
+      ].map(item => {
+        const isActive = user.tags && user.tags.includes(item.tag);
+        return `
+                  <label class="tag-checkbox ${isActive ? 'active' : ''}" style="--tag-bg: ${item.color.bg}; --tag-color: ${item.color.text}; --tag-border: ${item.color.border};">
+                    <input type="checkbox" name="subtags" value="${item.tag}" ${isActive ? 'checked' : ''}>
+                    <span class="tag-checkbox-label">${item.label}</span>
+                  </label>
+                `;
+      }).join('')}
+            </div>
+          </div>
+
           <button type="button" class="btn btn-primary" id="tags-submit" style="margin-top: var(--space-6);">
             Save Tags
           </button>
@@ -489,24 +513,50 @@ const App = {
   initSettingsPage() {
     // Tag selector interactivity
     const tagSelector = document.getElementById('tag-selector');
+    const subTagsSection = document.getElementById('sub-tags-section');
+    const subTagSelector = document.getElementById('sub-tag-selector');
+
+    const updateSubTagsVisibility = () => {
+      const buyingChecked = tagSelector.querySelector('input[value="buying"]:checked');
+      const sellingChecked = tagSelector.querySelector('input[value="selling"]:checked');
+      subTagsSection.style.display = (buyingChecked || sellingChecked) ? 'block' : 'none';
+    };
+
     tagSelector.addEventListener('change', (e) => {
       const label = e.target.closest('.tag-checkbox');
       if (label) {
         label.classList.toggle('active', e.target.checked);
       }
+      updateSubTagsVisibility();
     });
 
-    // Save tags
+    // Sub-tag selector interactivity 
+    if (subTagSelector) {
+      subTagSelector.addEventListener('change', (e) => {
+        const label = e.target.closest('.tag-checkbox');
+        if (label) {
+          label.classList.toggle('active', e.target.checked);
+        }
+      });
+    }
+
+    // Save tags (including sub-tags)
     document.getElementById('tags-submit').addEventListener('click', async () => {
-      const checkboxes = document.querySelectorAll('#tag-selector input[type="checkbox"]:checked');
-      const tags = Array.from(checkboxes).map(cb => cb.value);
+      const mainCheckboxes = document.querySelectorAll('#tag-selector input[type="checkbox"]:checked');
+      const subCheckboxes = document.querySelectorAll('#sub-tag-selector input[type="checkbox"]:checked');
+      const mainTags = Array.from(mainCheckboxes).map(cb => cb.value);
+      const subTags = Array.from(subCheckboxes).map(cb => cb.value);
+
+      // Only include sub-tags if buying or selling is selected
+      const hasBuyingOrSelling = mainTags.includes('buying') || mainTags.includes('selling');
+      const allTags = hasBuyingOrSelling ? [...mainTags, ...subTags] : mainTags;
 
       const btn = document.getElementById('tags-submit');
       btn.disabled = true;
       btn.textContent = 'Saving...';
 
       try {
-        await API.auth.updateTags(tags);
+        await API.auth.updateTags(allTags);
         await Auth.init();
         this.showToast('Tags updated', 'success');
       } catch (error) {

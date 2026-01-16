@@ -16,8 +16,8 @@ if (!fs.existsSync(STORAGE_DIR)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
 }
 
-// Valid user tags
-const VALID_TAGS = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
+// Valid user tags (main tags + sub-tags)
+const VALID_TAGS = ['buying', 'selling', 'lending', 'borrowing', 'looking', 'nudes', 'sexting', 'irl_gfe'];
 
 async function initializeDatabase() {
   const client = await pool.connect();
