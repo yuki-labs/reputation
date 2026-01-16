@@ -63,6 +63,14 @@ async function initializeDatabase() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_oauth ON users(oauth_provider, oauth_id)`);
 
+    // Add onboarding_complete column if it doesn't exist
+    try {
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT FALSE`);
+      console.log('Onboarding column ensured');
+    } catch (err) {
+      console.log('Onboarding column already exists or migration skipped');
+    }
+
     // User tags table (many-to-many relationship)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_tags (

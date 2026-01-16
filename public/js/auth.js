@@ -7,6 +7,11 @@ const Auth = {
       const data = await API.auth.getMe();
       this.currentUser = data;
       this.updateUI();
+
+      // Check if onboarding is needed
+      if (this.currentUser && !this.currentUser.onboardingComplete) {
+        this.showOnboardingModal();
+      }
     } catch (error) {
       this.currentUser = null;
       this.updateUI();
@@ -132,6 +137,94 @@ const Auth = {
     } catch (error) {
       console.error('Failed to get unread count:', error);
     }
+  },
+
+  showOnboardingModal() {
+    const modalContent = document.getElementById('modal-content');
+    const validTags = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
+
+    const tagColors = {
+      buying: '#10b981',
+      selling: '#f59e0b',
+      lending: '#3b82f6',
+      borrowing: '#8b5cf6',
+      looking: '#ec4899'
+    };
+
+    modalContent.innerHTML = `
+      <div class="onboarding-modal">
+        <h2 class="modal-title">Welcome to VerifiedUsers! 🎉</h2>
+        <p class="onboarding-subtitle">Let others know what you're here for. Select at least one tag:</p>
+        
+        <div class="onboarding-tags" id="onboarding-tags">
+          ${validTags.map(tag => `
+            <button type="button" class="onboarding-tag" data-tag="${tag}" style="--tag-color: ${tagColors[tag]}">
+              <span class="onboarding-tag-check">✓</span>
+              <span class="onboarding-tag-name">${tag.charAt(0).toUpperCase() + tag.slice(1)}</span>
+            </button>
+          `).join('')}
+        </div>
+        
+        <p class="onboarding-hint">You can change these later in your settings.</p>
+        
+        <button class="btn btn-primary btn-lg onboarding-continue" id="onboarding-continue" disabled>
+          Continue
+        </button>
+      </div>
+    `;
+
+    App.openModal();
+
+    // Prevent closing the modal without completing onboarding
+    const modal = document.getElementById('modal');
+    const closeBtn = modal.querySelector('.modal-close');
+    if (closeBtn) closeBtn.style.display = 'none';
+
+    // Tag selection logic
+    const selectedTags = new Set();
+    const tagsContainer = document.getElementById('onboarding-tags');
+    const continueBtn = document.getElementById('onboarding-continue');
+
+    tagsContainer.addEventListener('click', (e) => {
+      const tagBtn = e.target.closest('.onboarding-tag');
+      if (!tagBtn) return;
+
+      const tag = tagBtn.dataset.tag;
+      if (selectedTags.has(tag)) {
+        selectedTags.delete(tag);
+        tagBtn.classList.remove('selected');
+      } else {
+        selectedTags.add(tag);
+        tagBtn.classList.add('selected');
+      }
+
+      continueBtn.disabled = selectedTags.size === 0;
+    });
+
+    continueBtn.addEventListener('click', async () => {
+      if (selectedTags.size === 0) return;
+
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Setting up...';
+
+      try {
+        const result = await API.auth.completeOnboarding([...selectedTags]);
+        this.currentUser.tags = result.tags;
+        this.currentUser.onboardingComplete = true;
+
+        App.closeModal();
+        if (closeBtn) closeBtn.style.display = '';
+
+        App.showToast('Welcome aboard! Your profile is ready.', 'success');
+
+        // Refresh the page to show updated content
+        App.handleRoute();
+      } catch (error) {
+        App.showToast(error.message || 'Failed to complete setup', 'error');
+        continueBtn.disabled = false;
+        continueBtn.textContent = 'Continue';
+      }
+    });
   },
 
   showAuthModal(mode = 'login') {

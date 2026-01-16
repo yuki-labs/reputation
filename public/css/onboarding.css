@@ -1,0 +1,97 @@
+/* ========================================
+   Onboarding Modal
+======================================== */
+
+.onboarding-modal {
+    text-align: center;
+    padding: var(--space-4);
+}
+
+.onboarding-modal .modal-title {
+    font-size: var(--font-size-2xl);
+    margin-bottom: var(--space-2);
+}
+
+.onboarding-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: var(--space-6);
+    font-size: var(--font-size-lg);
+}
+
+.onboarding-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+.onboarding-tag {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-5);
+    background: var(--surface-2);
+    border: 2px solid var(--border-default);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.onboarding-tag:hover {
+    border-color: var(--tag-color, var(--primary-500));
+    background: var(--surface-3);
+}
+
+.onboarding-tag.selected {
+    background: var(--tag-color, var(--primary-500));
+    border-color: var(--tag-color, var(--primary-500));
+    color: white;
+    transform: scale(1.05);
+}
+
+.onboarding-tag-check {
+    display: none;
+    font-weight: bold;
+}
+
+.onboarding-tag.selected .onboarding-tag-check {
+    display: inline;
+}
+
+.onboarding-hint {
+    color: var(--text-tertiary);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-6);
+}
+
+.onboarding-continue {
+    min-width: 200px;
+}
+
+.onboarding-continue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Animation for selected tags */
+@keyframes tagPulse {
+    0% {
+        transform: scale(1.05);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+
+    100% {
+        transform: scale(1.05);
+    }
+}
+
+.onboarding-tag.selected {
+    animation: tagPulse 0.3s ease;
+}

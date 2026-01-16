@@ -95,7 +95,8 @@ router.post('/register', async (req, res, next) => {
                 username: username.toLowerCase(),
                 email: email.toLowerCase(),
                 displayName: displayName || username,
-                tags: []
+                tags: [],
+                onboardingComplete: false
             }
         });
     } catch (error) {
@@ -115,7 +116,7 @@ router.post('/login', async (req, res, next) => {
         const pool = getPool();
 
         const result = await pool.query(
-            `SELECT id, username, email, password_hash, display_name, avatar_url, is_active
+            `SELECT id, username, email, password_hash, display_name, avatar_url, is_active, onboarding_complete
        FROM users 
        WHERE username = $1 OR email = $1`,
             [login.toLowerCase()]
@@ -154,7 +155,8 @@ router.post('/login', async (req, res, next) => {
                 email: user.email,
                 displayName: user.display_name,
                 avatarUrl: user.avatar_url,
-                tags
+                tags,
+                onboardingComplete: user.onboarding_complete || false
             }
         });
     } catch (error) {
@@ -173,7 +175,7 @@ router.get('/me', authenticateToken, async (req, res, next) => {
     try {
         const pool = getPool();
         const result = await pool.query(
-            `SELECT id, username, email, display_name, avatar_url, bio, created_at, oauth_provider, password_hash
+            `SELECT id, username, email, display_name, avatar_url, bio, created_at, oauth_provider, password_hash, onboarding_complete
        FROM users WHERE id = $1`,
             [req.user.id]
         );
@@ -196,7 +198,53 @@ router.get('/me', authenticateToken, async (req, res, next) => {
             createdAt: user.created_at,
             oauthProvider: user.oauth_provider || null,
             hasPassword: !!(user.password_hash && user.password_hash.length > 0),
-            tags
+            tags,
+            onboardingComplete: user.onboarding_complete || false
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Complete onboarding - set initial tags
+router.post('/complete-onboarding', authenticateToken, async (req, res, next) => {
+    try {
+        const { tags } = req.body;
+        const pool = getPool();
+        const userId = req.user.id;
+
+        // Validate tags
+        const validTags = ['buying', 'selling', 'lending', 'borrowing', 'looking'];
+        if (!tags || !Array.isArray(tags) || tags.length === 0) {
+            return res.status(400).json({ error: 'Please select at least one tag' });
+        }
+
+        const filteredTags = tags.filter(t => validTags.includes(t));
+        if (filteredTags.length === 0) {
+            return res.status(400).json({ error: 'Please select at least one valid tag' });
+        }
+
+        // Delete existing tags and insert new ones
+        await pool.query('DELETE FROM user_tags WHERE user_id = $1', [userId]);
+
+        for (const tag of filteredTags) {
+            const tagId = require('uuid').v4();
+            await pool.query(
+                'INSERT INTO user_tags (id, user_id, tag) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+                [tagId, userId, tag]
+            );
+        }
+
+        // Mark onboarding as complete
+        await pool.query(
+            'UPDATE users SET onboarding_complete = true WHERE id = $1',
+            [userId]
+        );
+
+        res.json({
+            message: 'Onboarding complete',
+            tags: filteredTags,
+            onboardingComplete: true
         });
     } catch (error) {
         next(error);

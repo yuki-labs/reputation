@@ -57,6 +57,13 @@ const API = {
             return API.request('/auth/me');
         },
 
+        async completeOnboarding(tags) {
+            return API.request('/auth/complete-onboarding', {
+                method: 'POST',
+                body: JSON.stringify({ tags }),
+            });
+        },
+
         async updateProfile(data) {
             return API.request('/auth/me', {
                 method: 'PATCH',
