@@ -153,7 +153,7 @@ const Auth = {
     const categories = [
       {
         name: 'Seeking',
-        description: 'For users wishing to buy or sell intimate content or experiences',
+        description: 'Buy or sell intimate content or experiences',
         tags: ['buying', 'selling']
       },
       {
