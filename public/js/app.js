@@ -142,11 +142,17 @@ const App = {
     const color = this.getTagColor(mainTag);
     const clickAttr = clickable ? `data-tag-filter="${mainTag}"` : '';
     const mainLabel = this.tagLabels[mainTag] || mainTag;
-    const subLabels = subTags.map(t => this.tagLabels[t] || t).join(', ');
+
+    // Render each sub-tag as its own pill
+    const subTagPills = subTags.map(t => {
+      const subColor = this.getTagColor(t);
+      const subLabel = this.tagLabels[t] || t;
+      return `<span class="tag-subtag-pill" style="background: ${subColor.bg}; color: ${subColor.text}; border-color: ${subColor.border};">${subLabel}</span>`;
+    }).join('');
 
     return `<span class="tag-with-subtags" ${clickAttr} style="background: ${color.bg}; color: ${color.text}; border-color: ${color.border};">
       <span class="tag-main-label">${mainLabel}</span>
-      <span class="tag-subtags-inline">${subLabels}</span>
+      <span class="tag-subtags-inline">${subTagPills}</span>
     </span>`;
   },
 
