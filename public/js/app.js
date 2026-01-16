@@ -870,6 +870,10 @@ const App = {
 
       if (!conv) return;
 
+      // Check if either user has irl_gfe tag
+      const showGfeWarning = (data.currentUserTags || []).includes('irl_gfe') ||
+        (data.otherUserTags || []).includes('irl_gfe');
+
       const chatArea = document.getElementById('chat-area');
       chatArea.innerHTML = `
         <div class="chat-header">
@@ -886,6 +890,14 @@ const App = {
           <a href="/u/${conv.other_username}" class="btn btn-secondary" data-link style="margin-left: auto;">View Profile</a>
         </div>
         <div class="chat-messages" id="chat-messages"></div>
+        ${showGfeWarning ? `
+          <div class="chat-legal-warning">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+            </svg>
+            <span>Prostitution, even just the act of agreeing to exchange money for sex, may be illegal in your area.</span>
+          </div>
+        ` : ''}
         <div class="chat-input-area">
           <input type="file" id="attachment-input" accept="image/*,video/*,audio/*" style="display: none;">
           <button class="chat-attach-btn" id="attach-btn" title="Send file">

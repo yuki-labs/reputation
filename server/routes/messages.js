@@ -113,15 +113,28 @@ router.get('/conversations/:id/messages', authenticateToken, async (req, res, ne
         const pool = getPool();
         const userId = req.user.id;
 
-        // Verify user is in this conversation
+        // Verify user is in this conversation and get other user
         const convCheck = await pool.query(
-            'SELECT id FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)',
+            `SELECT id, user1_id, user2_id FROM conversations WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
             [conversationId, userId]
         );
 
         if (convCheck.rows.length === 0) {
             return res.status(404).json({ error: 'Conversation not found' });
         }
+
+        const conv = convCheck.rows[0];
+        const otherUserId = conv.user1_id === userId ? conv.user2_id : conv.user1_id;
+
+        // Get tags for both users
+        const currentUserTags = await pool.query(
+            'SELECT tag FROM user_tags WHERE user_id = $1',
+            [userId]
+        );
+        const otherUserTags = await pool.query(
+            'SELECT tag FROM user_tags WHERE user_id = $1',
+            [otherUserId]
+        );
 
         // Get messages with attachment info
         let query = `
@@ -150,7 +163,11 @@ router.get('/conversations/:id/messages', authenticateToken, async (req, res, ne
             [conversationId, userId]
         );
 
-        res.json({ messages: result.rows.reverse() });
+        res.json({
+            messages: result.rows.reverse(),
+            currentUserTags: currentUserTags.rows.map(r => r.tag),
+            otherUserTags: otherUserTags.rows.map(r => r.tag)
+        });
     } catch (error) {
         next(error);
     }

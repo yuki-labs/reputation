@@ -20,6 +20,7 @@
  * - messages.css        : Direct messaging UI
  * - message-actions.css : Edit, delete, history for messages
  * - onboarding.css      : New user onboarding modal
+ * - warnings.css        : Legal warnings and disclaimers
  * - utilities.css       : Toast, loading states, utilities
  */
 
@@ -38,4 +39,5 @@
 @import url('messages.css');
 @import url('message-actions.css');
 @import url('onboarding.css');
+@import url('warnings.css');
 @import url('utilities.css');
