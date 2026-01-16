@@ -21,19 +21,20 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-    align-items: flex-start;
+    align-items: center;
     margin-top: var(--space-2);
     margin-bottom: var(--space-2);
 }
 
-/* Tag Group with Nested Sub-tags */
+/* Tag Group with Nested Sub-tags - Horizontal Layout */
 .tag-group {
-    display: flex;
-    flex-direction: column;
+    display: inline-flex;
+    align-items: center;
     gap: var(--space-1);
-    padding: var(--space-2);
+    padding: var(--space-1);
+    padding-right: var(--space-2);
     background: var(--surface-2);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-full);
     border: 1px solid var(--border-subtle);
 }
 
@@ -42,12 +43,9 @@
 }
 
 .tag-subtags {
-    display: flex;
-    flex-wrap: wrap;
+    display: inline-flex;
+    align-items: center;
     gap: var(--space-1);
-    padding-left: var(--space-2);
-    border-left: 2px solid var(--border-default);
-    margin-left: var(--space-2);
 }
 
 .tag-filters {
