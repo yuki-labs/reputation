@@ -34,12 +34,6 @@
     gap: var(--space-1);
 }
 
-.tag-subtags-inline::before {
-    content: '·';
-    opacity: 0.5;
-    margin-right: var(--space-1);
-}
-
 .tag-subtag-pill {
     display: inline-flex;
     align-items: center;
